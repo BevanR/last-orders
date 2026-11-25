@@ -1,6 +1,6 @@
 import type { ClaimedJob, CompleteJobRequest, CompleteJobResponse, FailJobRequest } from '@last-orders/engine';
 import type { ModelAdapter } from './adapters/types.js';
-import { buildSuspectPrompt } from './prompt.js';
+import { buildCommentaryPrompt, buildGmPrompt, buildSuspectPrompt } from './prompt.js';
 
 export class AppApiError extends Error {
   constructor(
@@ -113,18 +113,30 @@ export class Worker {
     }
   }
 
+  /** Run one job through the model and submit the result. */
+  async run(job: ClaimedJob, adapter: ModelAdapter): Promise<Omit<CompleteJobRequest, 'leaseToken'>> {
+    switch (job.kind) {
+      case 'suspect_reply': {
+        const r = await adapter.reply(buildSuspectPrompt(job.context), job.context);
+        return { output: { text: r.text }, simulated: r.simulated, usage: r.usage };
+      }
+      case 'gm_tick': {
+        const r = await adapter.chooseIntervention(buildGmPrompt(job.context), job.context);
+        return { output: { choice_id: r.choice_id, reason: r.reason }, simulated: r.simulated, usage: r.usage };
+      }
+      case 'reveal_commentary': {
+        const r = await adapter.commentary(buildCommentaryPrompt(job.context), job.context);
+        return { output: { text: r.text }, simulated: r.simulated, usage: r.usage };
+      }
+    }
+  }
+
   async process(job: ClaimedJob): Promise<CompleteJobResponse | null> {
     const adapter = job.simulatedOnly ? this.opts.fallback : this.opts.adapter;
     try {
-      const prompt = buildSuspectPrompt(job.context);
-      const reply = await adapter.reply(prompt, job.context);
-      const result = await this.opts.client.complete(job.id, {
-        leaseToken: job.leaseToken,
-        output: { text: reply.text },
-        simulated: reply.simulated,
-        usage: reply.usage,
-      });
-      this.log(`job ${job.id}: ${result.status}`);
+      const out = await this.run(job, adapter);
+      const result = await this.opts.client.complete(job.id, { leaseToken: job.leaseToken, ...out });
+      this.log(`job ${job.id} (${job.kind}): ${result.status}`);
       return result;
     } catch (err) {
       if (err instanceof AppApiError && err.status === 409) {

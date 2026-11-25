@@ -76,12 +76,12 @@ Browsers ──HTTP + SSE──> Fly App `last-orders` (web UI, game API, rules 
 ## Milestones
 
 1. **Case bible** — `case/bible.md`, `case/clue-graph.md`. Drafted by a writer agent, then a
-   separate fairness review. Status: drafting.
+   separate fairness review. Status: done (25 November 2026), revised after review.
 2. **Infra proof** — Sprite created, one real connector call, wake-by-URL verified, app
    deployed, MPG attached. Status: app + MPG created; Sprite spike in progress.
 3. **Vertical slice** — join room, interview a suspect, find evidence, present it, testimony
-   changes once.
-4. **Full case** — shared board, acts, accusation, reveal, game-master interventions.
+   changes once. Status: done, merged to `main` (engine 17, agent 8, server 15 tests, 2-player Playwright e2e).
+4. **Full case** — shared board, acts, accusation, reveal, game-master interventions. Status: in progress on branch `m4` (worktree `/home/user/lo-m4`). CI/CD and Sprite agent bundle in progress on branch `deploy` (worktree `/home/user/lo-deploy`).
 5. **Hardening and demo** — recovery tests, adversarial dialogue evals, polish, README, demo.
 
 ## Acceptance tests (from the spec)
@@ -97,3 +97,10 @@ Browsers ──HTTP + SSE──> Fly App `last-orders` (web UI, game API, rules 
 9. At least one real model request runs through the Sprites connector.
 10. A fresh player can solve the case from discoverable evidence.
 11. The end-to-end test suite runs without paid model calls.
+
+## Working agreements for agents
+
+- One git worktree per agent and branch. Never commit in another agent's worktree.
+- The lead session merges branches into `main`.
+- Open risk: the Anthropic SDK sends `anthropic-version: 2026-10-21`; untested whether the
+  Sprites gateway passes it through. The Sprite spike should check.

@@ -27,7 +27,7 @@ least one connector." Submission needs a public code link, a demo, and a short d
 | Resource | Name | ID / notes |
 |---|---|---|
 | Fly App | `last-orders` | created 25 November 2026 via Machines API, no machines yet |
-| MPG cluster | `last-orders-db` | id `1zqyxr7jz8erwp8m`, region `syd`, plan `dev-256`, Postgres 16 |
+| MPG cluster | `last-orders-db` | id `1zqyxr7jz8erwp8m`, region `syd`, plan `dev-256`, Postgres 16, attached to `last-orders`. Database `last_orders`, user `last_orders_app` (role `schema_admin`). App secret `DATABASE_URL` set (direct endpoint, `sslmode=require`). |
 | Sprite | `last-orders-gm` | not yet created |
 | Anthropic connector | "Anthropic API Access" | connection id `yscja5o0A-6UPqpa3IFdig`; access policy: Sprites with name prefix `last-orders-` only |
 
@@ -48,6 +48,10 @@ Only the Messages API (plus token counting, batches) and `/v1/models` are forwar
 - `flyctl` is not installable in the default cloud egress policy. Deploys go through GitHub
   Actions (`superfly/flyctl-actions`) with a `FLY_API_TOKEN` repo secret that Bevan adds.
 - Fly MCP tools failed to load in the first session; do not depend on them.
+- `AGENT_SHARED_SECRET` is not set yet. The first session that has both Sprites access and
+  `FLY_PERSONAL_ORG_TOKEN` should generate it, set it as a Fly app secret (Machines API
+  `POST /v1/apps/last-orders/secrets/AGENT_SHARED_SECRET`) and write it to the Sprite, without
+  printing it.
 
 ## Architecture
 

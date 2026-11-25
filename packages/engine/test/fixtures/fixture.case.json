@@ -1,0 +1,148 @@
+{
+  "id": "placeholder-lodge",
+  "title": "The Placeholder Lodge",
+  "intro": "A test fixture, not the real case. Storm outside, a body in the snug, two suspects at the bar.",
+  "acts": [
+    {
+      "number": 1,
+      "name": "Closing Time",
+      "intro": "The landlord is dead in the snug. Nobody may leave until the road clears.",
+      "auto_advance": {
+        "all": [{ "transition_fired": "ada-admits-stockroom" }, { "evidence_shared": "wine-stain" }]
+      }
+    },
+    {
+      "number": 2,
+      "name": "After Hours",
+      "intro": "The power flickers. Stories start to come apart."
+    }
+  ],
+  "suspects": [
+    {
+      "id": "ada",
+      "name": "Ada Price",
+      "role": "Barkeep",
+      "public_description": "Ran the bar tonight. Calm, quick with a towel, slow with an answer.",
+      "persona": "Ada has worked the bar for ten years. She is loyal to the lodge and distrusts outsiders.",
+      "voice": "Short sentences. Dry. Calls everyone 'love'.",
+      "initial_state": "guarded",
+      "unrelated_secret": "Ada waters down the house whisky and pockets the difference.",
+      "states": [
+        {
+          "id": "guarded",
+          "account": "She was behind the bar all night and never left it.",
+          "facts": [
+            { "id": "ada-busy", "text": "The bar was busy from eight until closing." },
+            { "id": "ada-bram-kitchen", "text": "Bram was in the kitchen most of the evening." }
+          ],
+          "authorised_lies": [{ "id": "ada-never-left", "text": "I never left the bar, not once." }]
+        },
+        {
+          "id": "shaken",
+          "account": "She admits she slipped into the stockroom at ten to fetch a crate, and heard raised voices from the cellar.",
+          "facts": [
+            { "id": "ada-stockroom", "text": "I went to the stockroom just after ten." },
+            { "id": "ada-voices", "text": "I heard two men arguing in the cellar." }
+          ],
+          "authorised_lies": []
+        }
+      ]
+    },
+    {
+      "id": "bram",
+      "name": "Bram Holt",
+      "role": "Cook",
+      "public_description": "The lodge's cook. Big hands, flour on his sleeves, short temper.",
+      "persona": "Bram owes the landlord money and resents him. He is careful to seem helpful.",
+      "voice": "Gruff, rambling, changes the subject to food.",
+      "initial_state": "calm",
+      "unrelated_secret": "Bram is wanted for an unpaid fine in another county.",
+      "states": [
+        {
+          "id": "calm",
+          "account": "He was in the kitchen all night cleaning up after service.",
+          "facts": [{ "id": "bram-service", "text": "Service ended at half nine." }],
+          "authorised_lies": [{ "id": "bram-no-cellar", "text": "I haven't been down the cellar in a week." }]
+        }
+      ]
+    }
+  ],
+  "locations": [
+    {
+      "id": "bar",
+      "name": "The Bar",
+      "description": "Brass taps, a cold fire, glasses still on the counter.",
+      "inspect_text": "You run a hand along the counter and check behind the till."
+    },
+    {
+      "id": "kitchen",
+      "name": "The Kitchen",
+      "description": "Still warm. Pans soaking in the sink.",
+      "inspect_text": "You go through the drawers and the coat hooks by the back door."
+    },
+    {
+      "id": "cellar",
+      "name": "The Cellar",
+      "description": "Barrels, damp stone, a single bulb.",
+      "unlock": { "evidence_discovered": "cellar-key" },
+      "inspect_text": "You unlock the cellar door and go down the steps."
+    }
+  ],
+  "evidence": [
+    {
+      "id": "torn-receipt",
+      "name": "Torn stockroom receipt",
+      "description": "Half a delivery receipt signed 'A.P.', stamped 22:04, found under the till.",
+      "discovery": { "action": "inspect", "location_id": "bar" },
+      "found_text": "Under the till drawer: half a receipt, stamped 22:04."
+    },
+    {
+      "id": "cellar-key",
+      "name": "Cellar key",
+      "description": "A heavy iron key on a red string, hung in the cook's coat.",
+      "discovery": { "action": "inspect", "location_id": "kitchen" },
+      "found_text": "In the cook's coat pocket: a heavy iron key on a red string."
+    },
+    {
+      "id": "wine-stain",
+      "name": "Fresh wine stain",
+      "description": "A wet red stain on the cellar steps, with a boot print in it.",
+      "discovery": { "action": "inspect", "location_id": "cellar" },
+      "found_text": "On the third step down: a wet stain and half a boot print."
+    }
+  ],
+  "transitions": [
+    {
+      "id": "ada-admits-stockroom",
+      "suspect_id": "ada",
+      "from_state": "guarded",
+      "evidence_id": "torn-receipt",
+      "min_act": 1,
+      "to_state": "shaken",
+      "reaction": "She goes still, folds the towel, and admits the receipt is hers."
+    }
+  ],
+  "hints": [
+    {
+      "id": "hint-till",
+      "text": "Someone should look behind the till.",
+      "condition": {
+        "all": [{ "minutes_since_progress_at_least": 5 }, { "not": { "evidence_discovered": "torn-receipt" } }]
+      }
+    }
+  ],
+  "atmospheric_events": [
+    {
+      "id": "power-flicker",
+      "text": "The lights flicker and die for a moment. Somewhere a door bangs.",
+      "condition": { "act_at_least": 2 }
+    }
+  ],
+  "solution": {
+    "killer_suspect_id": "bram",
+    "motive": "He owed the landlord money he could not repay.",
+    "method": "He struck him with a bottle in the cellar and carried him to the snug.",
+    "critical_evidence_ids": ["cellar-key", "wine-stain"],
+    "explanation": "Placeholder solution for tests."
+  }
+}

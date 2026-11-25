@@ -13,6 +13,7 @@ import { Dispatcher } from './dispatcher.js';
 import { HttpError, parseBody, toHttpError } from './errors.js';
 import { NotifyHub } from './events.js';
 import { GameService } from './game.js';
+import { registerHealth } from './health.js';
 import { CompleteBodySchema, FailBodySchema, JobQueue } from './jobs.js';
 import { RateLimiter } from './ratelimit.js';
 
@@ -94,7 +95,7 @@ export async function buildApp(
 
   // ---- Public API ----
 
-  app.get('/healthz', async () => ({ ok: true }));
+  registerHealth(app, db);
 
   app.post('/api/rooms', async (req, reply) => {
     limit(roomsPerIp, req.ip);

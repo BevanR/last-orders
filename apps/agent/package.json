@@ -15,10 +15,14 @@
     "typecheck": "tsc --noEmit",
     "dev": "tsx watch --conditions=source src/main.ts",
     "start": "node dist/main.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bundle": "node bundle.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.14.0",
     "@last-orders/engine": "0.1.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

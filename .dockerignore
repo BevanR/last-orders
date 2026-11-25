@@ -1,0 +1,11 @@
+# Build context for the Fly app image. Only sources and manifests go in; the image builds itself.
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/*.log
+.git
+.github
+.env
+test-results
+tests
+infra

@@ -1,0 +1,55 @@
+# Fly App `last-orders` (org `bevan-rudge`): the game server and web client.
+# Deployed by .github/workflows/deploy.yml with `flyctl deploy --remote-only --ha=false`.
+# The agent does not run here; it runs on the Sprite `last-orders-gm`.
+#
+# Secrets (set with `fly secrets set`, never in this file):
+#   DATABASE_URL         MPG `last-orders-db` direct endpoint, sslmode=require
+#   AGENT_SHARED_SECRET  bearer secret for /internal/agent/*; the same value is on the Sprite
+
+app = "last-orders"
+primary_region = "syd"
+kill_signal = "SIGTERM"
+kill_timeout = "10s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  NODE_ENV = "production"
+  # The engine's placeholder case. Change to "/app/case/last-orders.case.json" when the
+  # authored case file is on `main`; the image copies `case/` to /app/case.
+  CASE_FILE = "/app/packages/engine/test/fixtures/fixture.case.json"
+  # The agent's wake endpoint on the Sprite, for example "https://<sprite-url>/wake".
+  # Empty until the Sprite URL is known: the server then queues jobs but never pings the agent.
+  AGENT_WAKE_URL = ""
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # "stop", not "suspend". With one machine and min_machines_running = 1 the proxy never stops
+  # it, and the dispatcher (lease expiry, wake pings, game-master ticks) keeps running while games
+  # are active. If it is ever stopped, a cold start is safer than a resume: a resumed snapshot
+  # would come back holding dead Postgres connections (pool and LISTEN) and dead SSE streams,
+  # while a fresh start reconnects and reruns migrations cleanly.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  # Each open game tab holds one SSE connection, so the default limit of 25 is too low.
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 400
+    hard_limit = 500
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/healthz"
+    interval = "15s"
+    timeout = "5s"
+    # Startup runs migrations and loads the case before the server listens.
+    grace_period = "20s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

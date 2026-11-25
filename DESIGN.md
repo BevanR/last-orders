@@ -144,3 +144,48 @@ Where the slice differs from, or adds detail to, the design above:
 - **Not in the slice.** The dispatcher does not enqueue `gm_tick` jobs yet; the engine's game
   master context and allowed-intervention list exist and are tested. Accusations are a table
   only. `CASE_FILE` defaults to the engine's placeholder fixture.
+
+## Implementation notes (milestone 4, the full case)
+
+Where the full case differs from, or adds detail to, the design above:
+
+- **Case file.** `case/last-orders.case.json` is the default `CASE_FILE`; the fixture stays for unit
+  tests. Gaps and contradictions patched in the JSON are listed at the end of `case/bible.md`.
+- **Testimony threads.** A suspect has one or more threads (Lionel: where and money), each with
+  its own state. `suspect_states` has one row per `(game, suspect, thread)`. A transition moves
+  one thread and may move others (`also_set`); it can also require a condition (TL4 needs TL1).
+  A reply's staleness check uses the sum of the suspect's thread revisions.
+- **Location actions.** Each location has visible actions with their own unlock (the storm hatch
+  opens in Act II inside an Act I room). A card comes from exactly one action.
+- **Reactions are decided by the engine.** When a card fires nothing, the engine picks the
+  authored reaction for the suspect's current state ("already told" or default otherwise) at the
+  moment of the presentation and stores it with the job. The model only voices it.
+- **The killer's brief holds only what he may say.** Lionel's context lists his account, lies and
+  the facts of his current state; it never states what he did. Every brief forbids confessing and
+  naming a killer.
+- **Acts.** Authored `auto_advance` conditions are checked after every player action and on every
+  dispatcher pass (timed conditions such as "12 minutes in Act I" are at most one pass late). Only
+  the host ends the game; no timer does.
+- **Game master.** The dispatcher runs periodic upkeep for every active game. A `gm_tick` is
+  enqueued every `GM_TICK_SECONDS` (default 90; 0 turns it off) unless one is open or no player has
+  acted for `GM_IDLE_MINUTES` (default 20). The first tick is due one interval after the start.
+  The agent returns `{choice_id, reason}`; the app checks the id against the allowed list for the
+  state at completion time and applies it at most once (`game_interventions`). Hints are offered
+  strictly in order. Choice ids are `hint:<id>`, `highlight_location:<id>`, `notice:<id>`,
+  `event:<id>`, `suggest_advance` (stored once per act) and `none`. A suggestion goes to the host
+  only. The host can give the next hint by hand; that ignores its delivery condition but keeps
+  the order.
+- **Accusation.** One per game, for the whole group, because the bible's scoring is for one
+  group accusation. Any player submits it, citing cards they hold or the board. It is final and
+  closes inspection, interviews and presentations. Its outcome is stored but appears only in the
+  reveal, after the host ends the game.
+- **Reveal and commentary.** `GameView.reveal` exists only once the game has ended. Ending enqueues
+  one `reveal_commentary` job; its text is stored in `games.commentary` and always shown labelled
+  as commentary (simulated or AI). A failed commentary job is dropped; the reveal does not need it.
+- **Simulated adapter.** Suspects answer only from authored lines: the account on a first turn, the
+  transition account, the authored reaction, a situational line on its keywords, the don't-know
+  line for injection attempts, and otherwise the authored statement sharing most words with the
+  question (or the don't-know line). The simulated game master gives hints first, then the host
+  suggestion, notices, highlights, and an atmospheric event in a lull.
+- **Evals.** `apps/agent/evals` runs 16 adversarial cases with deterministic checks. CI runs them
+  with the simulated adapter only; the anthropic adapter needs `EVAL_ALLOW_MODEL_CALLS=1`.

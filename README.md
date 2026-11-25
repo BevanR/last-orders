@@ -73,10 +73,12 @@ Server (`apps/server`):
 | `DATABASE_URL` | `postgres://postgres:postgres@localhost:5432/last_orders` | Postgres connection. |
 | `AGENT_SHARED_SECRET` | (unset) | Bearer secret for `/internal/agent/*`. Unset disables that API. |
 | `AGENT_WAKE_URL` | (unset) | Agent wake endpoint. Unset: the server never pings the agent. |
-| `CASE_FILE` | `packages/engine/test/fixtures/fixture.case.json` | Case to load. The placeholder fixture until the real case exists. |
+| `CASE_FILE` | `case/last-orders.case.json` | Case to load. Tests use the fixture in `packages/engine/test/fixtures/`. |
 | `PORT` | `8080` | HTTP port. |
 | `COOKIE_INSECURE` | (unset) | `1` drops the `Secure` cookie flag for local `http://`. |
 | `JOB_LEASE_SECONDS`, `JOB_MAX_ATTEMPTS`, `DISPATCHER_INTERVAL_MS` | `60`, `3`, `10000` | Job queue tuning. |
+| `GM_TICK_SECONDS` | `90` | Seconds between game-master ticks per active game. `0` turns the game master off. |
+| `GM_IDLE_MINUTES` | `20` | No game-master ticks once no player has acted for this long. |
 
 Agent (`apps/agent`):
 
@@ -99,11 +101,24 @@ npm test             # engine and agent unit tests, server integration tests
 The server tests need the `last_orders_test` database; set `TEST_DATABASE_URL` to use another
 one. They empty its game tables on each test. No test calls a model.
 
-The end-to-end test drives two Chromium contexts through the whole slice against the built server
-and a simulated agent. It needs Playwright's Chromium (it uses a global `playwright` install if the
+The end-to-end test drives two Chromium contexts through the whole case, from first accounts to the
+reveal, against the built server and a simulated agent. It also checks that no page, HTML or script
+holds the solution before the reveal. Set `E2E_SCREENSHOTS=<dir>` to save screenshots. It needs Playwright's Chromium (it uses a global `playwright` install if the
 package is not in the repo) and the `last_orders` database:
 
 ```bash
 npm run build
 npm run test:e2e
+```
+
+### Suspect evals
+
+Adversarial dialogue checks (invented facts, premature confession, unauthorised knowledge, prompt
+injection) live in `apps/agent/evals`. They run with the simulated adapter in `npm test`, and on
+their own with:
+
+```bash
+npm run eval -w @last-orders/agent
+# Real model, paid calls: only on purpose.
+EVAL_ALLOW_MODEL_CALLS=1 npm run eval -w @last-orders/agent -- --adapter anthropic --model claude-haiku-5-5
 ```

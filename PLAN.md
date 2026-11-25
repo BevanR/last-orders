@@ -81,7 +81,9 @@ Browsers ──HTTP + SSE──> Fly App `last-orders` (web UI, game API, rules 
    deployed, MPG attached. Status: app + MPG created; Sprite spike in progress.
 3. **Vertical slice** — join room, interview a suspect, find evidence, present it, testimony
    changes once.
-4. **Full case** — shared board, acts, accusation, reveal, game-master interventions.
+4. **Full case** — shared board, acts, accusation, reveal, game-master interventions. Status: done
+   on branch `m4` (25 November 2026), simulated adapter only; see DESIGN.md "Implementation notes
+   (milestone 4)".
 5. **Hardening and demo** — recovery tests, adversarial dialogue evals, polish, README, demo.
 
 ## Acceptance tests (from the spec)

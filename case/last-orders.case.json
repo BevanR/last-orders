@@ -748,7 +748,7 @@
       "evidence_id": "e7",
       "to_state": "lionel-sea-walk",
       "reaction": "He looks at the sandy brogues for a long moment, then sets his jaw and gives a little ground, no more.",
-      "account": "All right. I didn't go straight to the car. I needed air, so I walked round the sea side to look at the surf. That's where the sand's from, and why I changed my shoes. I never went in the cellar. (He still claims he went to the car afterwards.)"
+      "account": "All right. I didn't go straight to the car. I needed air, so I walked round the sea side to look at the surf. That's where the sand's from, and why I changed my shoes. I never went in the cellar."
     },
     {
       "id": "tl2",
@@ -796,7 +796,7 @@
       "requires": { "not": { "suspect_in_state": { "suspect": "lionel", "state": "lionel-in-cellar" } } },
       "to_state": "lionel-money-admitted",
       "reaction": "He takes his glasses off and cleans them before he answers.",
-      "account": "There were some irregularities. Loans, if you like. I always meant to put it back. She raised it before dinner; that's what we talked about in the office, not her speech. It's a motive, not a murder. (The rest of his account of where he went stays as it was.)"
+      "account": "There were some irregularities. Loans, if you like. I always meant to put it back. She raised it before dinner; that's what we talked about in the office, not her speech. It's a motive, not a murder."
     },
     {
       "id": "td1",

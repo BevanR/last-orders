@@ -1,16 +1,37 @@
-import { buildSuspectContext, type ClaimedJob, type CompleteJobResponse } from '@last-orders/engine';
+import {
+  buildCommentaryContext,
+  buildGmContext,
+  buildSuspectContext,
+  findAllowedIntervention,
+  type ClaimedJob,
+  type CompleteJobResponse,
+  type JobKind,
+  type PresentReaction,
+} from '@last-orders/engine';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { CaseStore } from './cases.js';
 import { withTx, type Db, type Tx } from './db.js';
 import { HttpError } from './errors.js';
 import { emit } from './events.js';
-import { lockGame, loadState, toMessageDto, type MessageRow } from './store.js';
+import { applyIntervention } from './interventions.js';
+import { lockGame, loadState, toMessageDto, type GameRow, type MessageRow } from './store.js';
+
+export interface SuspectReplyPayload {
+  interviewId: string;
+  suspectId: string;
+  triggerMessageId: string;
+  /** The transition the triggering presentation fired, if any. */
+  transitionId: string | null;
+  /** The authored reaction to a presentation that fired nothing. */
+  reaction: Exclude<PresentReaction, { kind: 'transition' }> | null;
+}
 
 export interface JobRow {
   id: string;
   game_id: string;
   player_id: string | null;
-  kind: string;
+  kind: JobKind;
   serial_key: string;
   status: 'pending' | 'running' | 'done' | 'failed';
   lease_token: string | null;
@@ -18,20 +39,16 @@ export interface JobRow {
   attempts: number;
   idempotency_key: string;
   input_revision: number | null;
-  payload: SuspectReplyPayload;
+  payload: Partial<SuspectReplyPayload>;
   result: unknown;
-}
-
-export interface SuspectReplyPayload {
-  interviewId: string;
-  suspectId: string;
-  triggerMessageId: string;
-  transitionId: string | null;
 }
 
 export const CompleteBodySchema = z.object({
   leaseToken: z.string().uuid(),
-  output: z.object({ text: z.string().max(8_000) }),
+  output: z.union([
+    z.object({ text: z.string().max(8_000) }).strict(),
+    z.object({ choice_id: z.string().max(120), reason: z.string().max(1_000) }).strict(),
+  ]),
   simulated: z.boolean(),
   usage: z
     .object({
@@ -65,12 +82,13 @@ export function costCents(usage: CompleteBody['usage']): number {
 }
 
 const MAX_REPLY_CHARS = 1_200;
+const MAX_COMMENTARY_CHARS = 2_000;
 
 /** Model output is untrusted: drop control characters, trim, and cap the length. */
-export function cleanReply(text: string): string {
+export function cleanReply(text: string, max = MAX_REPLY_CHARS): string {
   // eslint-disable-next-line no-control-regex
   const clean = text.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').trim();
-  return clean.length > MAX_REPLY_CHARS ? `${clean.slice(0, MAX_REPLY_CHARS - 1)}…` : clean;
+  return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
 }
 
 export interface JobQueueOptions {
@@ -92,6 +110,28 @@ export class JobQueue {
        VALUES ($1, $2, 'suspect_reply', $3, $4, $5)
        ON CONFLICT (idempotency_key) DO NOTHING`,
       [gameId, playerId, `${gameId}:${payload.suspectId}`, `msg:${payload.triggerMessageId}`, payload],
+    );
+  }
+
+  /** Insert a game-master tick unless one is already open. The caller holds the game row lock. */
+  async enqueueGmTick(tx: Tx, gameId: string): Promise<boolean> {
+    const { rowCount } = await tx.query(
+      `INSERT INTO jobs (game_id, kind, serial_key, idempotency_key)
+       SELECT $1, 'gm_tick', $2, $3
+        WHERE NOT EXISTS (
+          SELECT 1 FROM jobs WHERE game_id = $1 AND kind = 'gm_tick' AND status IN ('pending', 'running'))`,
+      [gameId, `${gameId}:gm`, `gm:${gameId}:${randomUUID()}`],
+    );
+    return rowCount === 1;
+  }
+
+  /** Insert the one reveal-commentary job for a game. */
+  async enqueueCommentary(tx: Tx, gameId: string): Promise<void> {
+    await tx.query(
+      `INSERT INTO jobs (game_id, kind, serial_key, idempotency_key)
+       VALUES ($1, 'reveal_commentary', $2, $3)
+       ON CONFLICT (idempotency_key) DO NOTHING`,
+      [gameId, `${gameId}:commentary`, `commentary:${gameId}`],
     );
   }
 
@@ -138,29 +178,26 @@ export class JobQueue {
     );
     const job = rows[0];
     if (!job) return null;
-    const { context, revision, simulatedOnly } = await this.buildContext(tx, job);
-    await tx.query('UPDATE jobs SET input_revision = $2 WHERE id = $1', [job.id, revision]);
-    return {
+    const { rows: games } = await tx.query<GameRow>('SELECT * FROM games WHERE id = $1', [job.game_id]);
+    const game = games[0]!;
+    const c = await this.cases.get(game.case_version_id);
+    const state = await loadState(tx, game);
+    const base = {
       id: String(job.id),
-      kind: 'suspect_reply',
       leaseToken: job.lease_token!,
       leaseExpiresAt: job.lease_expires_at!.toISOString(),
       attempt: job.attempts,
-      simulatedOnly,
-      context,
+      simulatedOnly: Number(game.spend_cents) >= game.spend_cap_cents,
     };
-  }
-
-  private async buildContext(tx: Tx, job: JobRow) {
-    const p = job.payload;
-    const { rows: games } = await tx.query('SELECT * FROM games WHERE id = $1', [job.game_id]);
-    const game = games[0];
-    const c = await this.cases.get(game.case_version_id);
-    const state = await loadState(tx, game);
-    const { rows: rev } = await tx.query<{ revision: number }>(
-      'SELECT revision FROM suspect_states WHERE game_id = $1 AND suspect_id = $2',
-      [job.game_id, p.suspectId],
-    );
+    if (job.kind === 'gm_tick') {
+      await tx.query('UPDATE jobs SET input_revision = $2 WHERE id = $1', [job.id, game.revision]);
+      return { ...base, kind: 'gm_tick', context: buildGmContext(c, state) };
+    }
+    if (job.kind === 'reveal_commentary') {
+      return { ...base, kind: 'reveal_commentary', context: buildCommentaryContext(c, state) };
+    }
+    const p = job.payload as SuspectReplyPayload;
+    const revision = await this.suspectRevision(tx, job.game_id, p.suspectId);
     // The last 40 messages up to the trigger, oldest first.
     const { rows: history } = await tx.query<MessageRow>(
       `SELECT * FROM (
@@ -175,18 +212,26 @@ export class JobQueue {
         presentedEvidenceId: m.presented_evidence_id,
       })),
       firedTransitionId: p.transitionId,
+      reaction: p.reaction,
     });
-    return {
-      context,
-      revision: rev[0]?.revision ?? 0,
-      simulatedOnly: Number(game.spend_cents) >= game.spend_cap_cents,
-    };
+    await tx.query('UPDATE jobs SET input_revision = $2 WHERE id = $1', [job.id, revision]);
+    return { ...base, kind: 'suspect_reply', context };
+  }
+
+  /** Changes on every thread transition of the suspect. */
+  private async suspectRevision(tx: Tx, gameId: string, suspectId: string): Promise<number> {
+    const { rows } = await tx.query<{ revision: string | null }>(
+      'SELECT sum(revision) AS revision FROM suspect_states WHERE game_id = $1 AND suspect_id = $2',
+      [gameId, suspectId],
+    );
+    return Number(rows[0]?.revision ?? 0);
   }
 
   /**
    * Accept an agent's result. Idempotent: completing a finished job returns the stored result
-   * and writes nothing. A result built from an out-of-date suspect state is discarded and the
-   * job requeued so it is rebuilt with fresh context.
+   * and writes nothing. A suspect reply built from an out-of-date suspect state is discarded and
+   * the job requeued so it is rebuilt with fresh context. A game-master choice is checked again
+   * against the current state, and only an allowed choice is applied.
    */
   async complete(jobId: string, body: CompleteBody): Promise<CompleteResult> {
     return withTx(this.db, async (tx) => {
@@ -197,57 +242,88 @@ export class JobQueue {
       const job = rows[0];
       if (!job) throw new HttpError(404, 'job_not_found');
       if (job.status === 'done') {
-        const r = job.result as { messageId: string };
-        return { status: 'done', duplicate: true, messageId: r.messageId };
+        const r = job.result as { messageId?: string | null };
+        return { status: 'done', duplicate: true, messageId: r.messageId ?? null };
       }
       if (job.status !== 'running' || job.lease_token !== body.leaseToken)
         throw new HttpError(409, 'lease_lost', 'This job is no longer leased to you.');
       if (job.expired) throw new HttpError(409, 'lease_expired', 'The lease has expired.');
-      const text = cleanReply(body.output.text);
-      if (!text) throw new HttpError(422, 'invalid_output', 'Empty reply.');
 
-      await lockGame(tx, job.game_id);
-      const p = job.payload;
-      const { rows: rev } = await tx.query<{ revision: number }>(
-        'SELECT revision FROM suspect_states WHERE game_id = $1 AND suspect_id = $2',
-        [job.game_id, p.suspectId],
-      );
-      if ((rev[0]?.revision ?? 0) !== job.input_revision) {
-        await tx.query(
-          `UPDATE jobs SET status = 'pending', lease_token = NULL, lease_expires_at = NULL,
-                  error = 'stale context', updated_at = now()
-            WHERE id = $1`,
-          [jobId],
-        );
-        return { status: 'requeued', reason: 'stale' };
+      const game = await lockGame(tx, job.game_id);
+      let result: { messageId: string | null } & Record<string, unknown>;
+      if (job.kind === 'gm_tick') result = await this.completeGmTick(tx, job, game, body);
+      else if (job.kind === 'reveal_commentary') result = await this.completeCommentary(tx, job, body);
+      else {
+        const r = await this.completeReply(tx, job, body);
+        if (r === 'stale') return { status: 'requeued', reason: 'stale' };
+        result = r;
       }
-
-      const inserted = await tx.query<MessageRow>(
-        `INSERT INTO messages (interview_id, role, text, job_id, simulated)
-         VALUES ($1, 'suspect', $2, $3, $4)
-         ON CONFLICT (job_id) WHERE job_id IS NOT NULL DO NOTHING
-         RETURNING *`,
-        [p.interviewId, text, jobId, body.simulated],
-      );
-      const message =
-        inserted.rows[0] ?? (await tx.query<MessageRow>('SELECT * FROM messages WHERE job_id = $1', [jobId])).rows[0]!;
       await tx.query(
         `UPDATE jobs SET status = 'done', result = $2, usage = $3, lease_token = NULL,
                 completed_at = now(), updated_at = now()
           WHERE id = $1`,
-        [jobId, { messageId: String(message.id) }, body.usage],
+        [jobId, result, body.usage],
       );
       const cents = costCents(body.usage);
       if (cents > 0)
         await tx.query('UPDATE games SET spend_cents = spend_cents + $2 WHERE id = $1', [job.game_id, cents]);
-      if (inserted.rows[0]) {
-        await emit(tx, job.game_id, `player:${job.player_id}`, 'message', {
-          suspectId: p.suspectId,
-          message: toMessageDto(message),
-        });
-      }
-      return { status: 'done', duplicate: false, messageId: String(message.id) };
+      return { status: 'done', duplicate: false, messageId: result.messageId };
     });
+  }
+
+  private async completeReply(tx: Tx, job: JobRow, body: CompleteBody) {
+    if (!('text' in body.output)) throw new HttpError(422, 'invalid_output', 'A reply needs text.');
+    const text = cleanReply(body.output.text);
+    if (!text) throw new HttpError(422, 'invalid_output', 'Empty reply.');
+    const p = job.payload as SuspectReplyPayload;
+    if ((await this.suspectRevision(tx, job.game_id, p.suspectId)) !== job.input_revision) {
+      await tx.query(
+        `UPDATE jobs SET status = 'pending', lease_token = NULL, lease_expires_at = NULL,
+                error = 'stale context', updated_at = now()
+          WHERE id = $1`,
+        [job.id],
+      );
+      return 'stale' as const;
+    }
+    const inserted = await tx.query<MessageRow>(
+      `INSERT INTO messages (interview_id, role, text, job_id, simulated)
+       VALUES ($1, 'suspect', $2, $3, $4)
+       ON CONFLICT (job_id) WHERE job_id IS NOT NULL DO NOTHING
+       RETURNING *`,
+      [p.interviewId, text, job.id, body.simulated],
+    );
+    const message =
+      inserted.rows[0] ?? (await tx.query<MessageRow>('SELECT * FROM messages WHERE job_id = $1', [job.id])).rows[0]!;
+    if (inserted.rows[0]) {
+      await emit(tx, job.game_id, `player:${job.player_id}`, 'message', {
+        suspectId: p.suspectId,
+        message: toMessageDto(message),
+      });
+    }
+    return { messageId: String(message.id) };
+  }
+
+  private async completeGmTick(tx: Tx, job: JobRow, game: GameRow, body: CompleteBody) {
+    if (!('choice_id' in body.output)) throw new HttpError(422, 'invalid_output', 'A game-master tick needs a choice.');
+    const { choice_id: choiceId, reason } = body.output;
+    const c = await this.cases.get(game.case_version_id);
+    const state = await loadState(tx, game);
+    const allowed = findAllowedIntervention(c, state, choiceId);
+    const applied = allowed ? await applyIntervention(tx, game.id, allowed, 'gm') : false;
+    return { messageId: null, choiceId, reason: reason.slice(0, 500), allowed: allowed !== undefined, applied };
+  }
+
+  private async completeCommentary(tx: Tx, job: JobRow, body: CompleteBody) {
+    if (!('text' in body.output)) throw new HttpError(422, 'invalid_output', 'Commentary needs text.');
+    const text = cleanReply(body.output.text, MAX_COMMENTARY_CHARS);
+    if (!text) throw new HttpError(422, 'invalid_output', 'Empty commentary.');
+    await tx.query('UPDATE games SET commentary = $2, commentary_simulated = $3 WHERE id = $1', [
+      job.game_id,
+      text,
+      body.simulated,
+    ]);
+    await emit(tx, job.game_id, 'public', 'commentary', { text, simulated: body.simulated });
+    return { messageId: null };
   }
 
   /** The agent could not produce a result. Retry until attempts run out. */
@@ -276,17 +352,20 @@ export class JobQueue {
       `UPDATE jobs SET status = 'failed', lease_token = NULL, error = $2, updated_at = now() WHERE id = $1`,
       [job.id, error],
     );
+    // Only a suspect reply has a player waiting on it; a failed tick or commentary is just dropped.
+    if (job.kind !== 'suspect_reply') return { status: 'failed' as const };
     await lockGame(tx, job.game_id);
+    const p = job.payload as SuspectReplyPayload;
     const { rows } = await tx.query<MessageRow>(
       `INSERT INTO messages (interview_id, role, text, job_id)
        VALUES ($1, 'system', 'No answer came. Try asking again.', $2)
        ON CONFLICT (job_id) WHERE job_id IS NOT NULL DO NOTHING
        RETURNING *`,
-      [job.payload.interviewId, job.id],
+      [p.interviewId, job.id],
     );
     if (rows[0])
       await emit(tx, job.game_id, `player:${job.player_id}`, 'message', {
-        suspectId: job.payload.suspectId,
+        suspectId: p.suspectId,
         message: toMessageDto(rows[0]),
       });
     return { status: 'failed' as const };

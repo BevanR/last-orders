@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AppClient } from '@last-orders/agent';
+import type { ClaimedJob, SuspectContext } from '@last-orders/engine';
 import { Dispatcher } from '../src/dispatcher.js';
 import {
   createRoom,
@@ -14,6 +15,12 @@ import {
 } from './helpers.js';
 
 let srv: TestServer;
+
+/** The suspect context of a claimed reply job. */
+function sc(job: ClaimedJob | null): SuspectContext {
+  if (job?.kind !== 'suspect_reply') throw new Error(`expected a suspect reply, got ${job?.kind}`);
+  return job.context;
+}
 
 beforeEach(async () => {
   srv = await startServer();
@@ -52,9 +59,9 @@ describe('vertical slice', () => {
     expect(first.body.waiting).toBe(false);
 
     // Inspect and discover.
-    const found = await alice.inspect('bar');
+    const found = await alice.inspect('bar', 'till');
     expect(found.body.found.map((e: any) => e.id)).toEqual(['torn-receipt']);
-    expect((await alice.inspect('cellar')).status).toBe(403);
+    expect((await alice.inspect('cellar', 'steps')).status).toBe(403);
     expect((await bob.state()).body.notebook).toEqual([]);
 
     // Share: Bob sees it live over SSE.
@@ -87,14 +94,11 @@ describe('vertical slice', () => {
     expect(await count('SELECT count(*) AS n FROM testimony_transitions')).toBe(1);
 
     // The new testimony persists in Alice's later interview.
-    expect((await alice.say('ada', 'Tell me again where you were.')).status).toBe(200);
+    expect((await alice.say('ada', 'What did you hear in the cellar?')).status).toBe(200);
     await srv.worker.wake();
     const later = (await alice.interview('ada')).body.messages.at(-1).text;
-    expect(
-      ['I went to the stockroom just after ten.', 'I heard two men arguing in the cellar.'].some((f) =>
-        later.includes(f),
-      ),
-    ).toBe(true);
+    expect(later).toMatch(/cellar/);
+    expect(later).not.toContain('never left the bar');
 
     // The browser never receives testimony state ids, transition ids or the solution.
     const json = JSON.stringify((await bob.state()).body);
@@ -108,7 +112,13 @@ describe('vertical slice', () => {
     const r = await other.req('POST', '/api/host/claim', { hostToken: hostUrl.slice(3) });
     expect(r.body).toEqual({ roomCode: host.roomCode });
     other.roomCode = host.roomCode;
-    expect((await other.state()).body.host).toEqual({ canStart: true, canAdvance: false, nextAct: null });
+    expect((await other.state()).body.host).toEqual({
+      canStart: true,
+      canAdvance: false,
+      nextAct: null,
+      canEnd: false,
+      canHint: false,
+    });
     expect((await other.req('POST', '/api/host/claim', { hostToken: 'x'.repeat(43) })).status).toBe(404);
   });
 
@@ -146,13 +156,13 @@ describe('privacy', () => {
     await bob!.say('ada', 'again');
     const job = await new AppClient(srv.baseUrl, SECRET).claim();
     expect(JSON.stringify(job!.context)).not.toContain('ALICE-SECRET-QUESTION');
-    expect(job!.context.history.map((h) => h.text)).toContain('BOB-QUESTION');
+    expect(sc(job).history.map((h) => h.text)).toContain('BOB-QUESTION');
   });
 
   it('replays SSE from Last-Event-ID with only events the viewer may see', async () => {
     const [alice, bob] = await startedGame(srv.baseUrl);
     await alice!.say('ada', 'ALICE-PRIVATE');
-    await alice!.inspect('bar');
+    await alice!.inspect('bar', 'till');
     await bob!.say('bram', 'BOB-PRIVATE');
     await srv.worker.wake();
     await alice!.share('torn-receipt');
@@ -197,7 +207,7 @@ describe('privacy', () => {
 describe('testimony transitions', () => {
   it('fire exactly once under concurrent presents', async () => {
     const players = await startedGame(srv.baseUrl, ['P1', 'P2', 'P3', 'P4', 'P5', 'P6']);
-    await players[0]!.inspect('bar');
+    await players[0]!.inspect('bar', 'till');
     await players[0]!.share('torn-receipt');
     const results = await Promise.all(players.map((p) => p.present('ada', 'torn-receipt')));
     expect(results.map((r) => r.status)).toEqual([200, 200, 200, 200, 200, 200]);
@@ -218,9 +228,9 @@ describe('testimony transitions', () => {
     const agent = new AppClient(srv.baseUrl, SECRET);
     await alice!.say('ada', 'Where were you?');
     const job = (await agent.claim())!;
-    expect(job.context.testimony.state).toBe('guarded');
+    expect(sc(job).account.changes).toEqual([]);
 
-    await alice!.inspect('bar');
+    await alice!.inspect('bar', 'till');
     await alice!.share('torn-receipt');
     await bob!.present('ada', 'torn-receipt');
 
@@ -233,7 +243,8 @@ describe('testimony transitions', () => {
     expect(r).toEqual({ status: 'requeued', reason: 'stale' });
     const again = (await agent.claim())!;
     expect(again.id).toBe(job.id);
-    expect(again.context.testimony.state).toBe('shaken');
+    expect(sc(again).account.changes).toHaveLength(1);
+    expect(sc(again).knows).toContain('I went to the stockroom just after ten.');
   });
 });
 
@@ -264,7 +275,7 @@ describe('jobs', () => {
     await srv.db.query("UPDATE jobs SET lease_expires_at = now() - interval '1 second' WHERE id = $1", [job.id]);
 
     const tick = await srv.dispatcher.tick();
-    expect(tick).toMatchObject({ requeued: 1, pending: 1 });
+    expect(tick).toMatchObject({ requeued: 1, enqueued: 0, pending: 1 });
     await expect(
       agent.complete(job.id, { leaseToken: job.leaseToken, output: { text: 'late' }, simulated: true, usage: null }),
     ).rejects.toMatchObject({ status: 409 });
@@ -304,8 +315,8 @@ describe('jobs', () => {
     const agent = new AppClient(srv.baseUrl, SECRET);
     const a = (await agent.claim())!;
     const b = (await agent.claim())!;
-    expect(a.context.suspect.id).toBe('ada');
-    expect(b.context.suspect.id).toBe('bram');
+    expect(sc(a).suspect.id).toBe('ada');
+    expect(sc(b).suspect.id).toBe('bram');
     expect(await agent.claim()).toBeNull(); // Bob's ada job waits for Alice's
   });
 

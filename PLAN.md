@@ -89,8 +89,10 @@ Browsers ──HTTP + SSE──> Fly App `last-orders` (web UI, game API, rules 
 2. **Infra proof** — Sprite created, one real connector call, wake-by-URL verified, app
    deployed, MPG attached. Status: app + MPG created; Sprite spike in progress.
 3. **Vertical slice** — join room, interview a suspect, find evidence, present it, testimony
-   changes once. Status: done, merged to `main` (engine 17, agent 8, server 15 tests, 2-player Playwright e2e).
-4. **Full case** — shared board, acts, accusation, reveal, game-master interventions. Status: in progress on branch `m4` (worktree `/home/user/lo-m4`). CI/CD and Sprite agent bundle in progress on branch `deploy` (worktree `/home/user/lo-deploy`).
+   changes once. Status: done (engine 17, agent 8, server 15 tests, 2-player Playwright e2e).
+4. **Full case** — shared board, acts, accusation, reveal, game-master interventions. Status: done
+   (25 November 2026), simulated adapter only; see DESIGN.md "Implementation notes
+   (milestone 4)". CI/CD and the Sprite agent bundle: done, untested on GitHub and live Sprites.
 5. **Hardening and demo** — recovery tests, adversarial dialogue evals, polish, README, demo.
 
 ## Acceptance tests (from the spec)

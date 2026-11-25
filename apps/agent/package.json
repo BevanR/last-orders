@@ -16,7 +16,8 @@
     "dev": "tsx watch --conditions=source src/main.ts",
     "start": "node dist/main.js",
     "test": "vitest run",
-    "bundle": "node bundle.mjs"
+    "bundle": "node bundle.mjs",
+    "eval": "tsx --conditions=source evals/run.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.14.0",

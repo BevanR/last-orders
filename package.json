@@ -15,7 +15,7 @@
     "build": "npm run build -w @last-orders/engine -w @last-orders/agent -w @last-orders/server -w @last-orders/web",
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test -w @last-orders/engine -w @last-orders/agent -w @last-orders/server",
-    "test:e2e": "node tests/e2e/slice.e2e.mjs",
+    "test:e2e": "node tests/e2e/case.e2e.mjs",
     "dev:server": "npm run dev -w @last-orders/server",
     "dev:agent": "npm run dev -w @last-orders/agent",
     "dev:web": "npm run dev -w @last-orders/web"

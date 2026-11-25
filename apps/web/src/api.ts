@@ -1,6 +1,12 @@
-import type { GameView } from '@last-orders/engine';
+import type { GameView, Notice, Reveal } from '@last-orders/engine';
 
-export type { GameView };
+export type { GameView, Notice, Reveal };
+
+/** The state endpoint's response: the redacted view, the SSE cursor and, after the end, commentary. */
+export type View = GameView & {
+  cursor: number;
+  commentary?: { text: string; simulated: boolean } | null;
+};
 
 export interface Message {
   id: string;
@@ -18,7 +24,8 @@ export interface Interview {
 }
 
 export interface InspectResult {
-  locationId: string | null;
+  locationId: string;
+  actionId: string;
   text: string;
   found: { id: string; name: string; description: string; text: string }[];
 }
@@ -54,10 +61,15 @@ export const api = {
   join: (code: string, displayName: string) =>
     call<{ roomCode: string }>('POST', `${room(code)}/join`, { displayName }),
   claimHost: (hostToken: string) => call<{ roomCode: string }>('POST', '/api/host/claim', { hostToken }),
-  state: (code: string) => call<GameView>('GET', `${room(code)}/state`),
+  state: (code: string) => call<View>('GET', `${room(code)}/state`),
   start: (code: string) => call<{ ok: true }>('POST', `${room(code)}/start`),
   advance: (code: string) => call<{ ok: true }>('POST', `${room(code)}/advance`),
-  inspect: (code: string, locationId: string) => call<InspectResult>('POST', `${room(code)}/inspect`, { locationId }),
+  end: (code: string) => call<{ ok: true }>('POST', `${room(code)}/end`),
+  hint: (code: string) => call<{ text: string }>('POST', `${room(code)}/hint`),
+  accuse: (code: string, suspectId: string, evidenceIds: string[], reasoning: string) =>
+    call<{ ok: true }>('POST', `${room(code)}/accuse`, { suspectId, evidenceIds, reasoning }),
+  inspect: (code: string, locationId: string, actionId: string) =>
+    call<InspectResult>('POST', `${room(code)}/inspect`, { locationId, actionId }),
   share: (code: string, evidenceId: string) =>
     call<{ alreadyOnBoard: boolean }>('POST', `${room(code)}/share`, { evidenceId }),
   interview: (code: string, suspectId: string) => call<Interview>('GET', `${room(code)}/interviews/${enc(suspectId)}`),

@@ -45,9 +45,8 @@ COPY --from=deps /app/package.json ./
 COPY --from=deps /app/node_modules node_modules
 COPY --from=build /app/packages/engine/package.json packages/engine/
 COPY --from=build /app/packages/engine/dist packages/engine/dist
-# The placeholder case, which CASE_FILE points at until the authored case exists.
-COPY --from=build /app/packages/engine/test/fixtures packages/engine/test/fixtures
-COPY case case
+# Only the machine-readable case ships; the case bible stays out of the image.
+COPY case/last-orders.case.json case/
 COPY --from=build /app/apps/server/package.json apps/server/
 COPY --from=build /app/apps/server/dist apps/server/dist
 # Applied by the server at startup (apps/server/src/db.ts, migrate()).

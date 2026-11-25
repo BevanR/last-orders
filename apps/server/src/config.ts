@@ -15,6 +15,10 @@ export interface Config {
   leaseSeconds: number;
   maxJobAttempts: number;
   dispatcherIntervalMs: number;
+  /** Seconds between game-master ticks per active game. 0 disables the game master. */
+  gmTickSeconds: number;
+  /** Minutes without a player action after which a game counts as idle and gets no ticks. */
+  gmIdleMinutes: number;
   logLevel: string;
 }
 
@@ -25,7 +29,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     databaseUrl: env.DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/last_orders',
     agentSharedSecret: env.AGENT_SHARED_SECRET ?? '',
     agentWakeUrl: env.AGENT_WAKE_URL ?? '',
-    caseFile: env.CASE_FILE ?? here('../../../packages/engine/test/fixtures/fixture.case.json'),
+    caseFile: env.CASE_FILE ?? here('../../../case/last-orders.case.json'),
     port: Number(env.PORT ?? 8080),
     host: env.HOST ?? '0.0.0.0',
     webDist: env.WEB_DIST ?? here('../../web/dist'),
@@ -33,6 +37,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     leaseSeconds: Number(env.JOB_LEASE_SECONDS ?? 60),
     maxJobAttempts: Number(env.JOB_MAX_ATTEMPTS ?? 3),
     dispatcherIntervalMs: Number(env.DISPATCHER_INTERVAL_MS ?? 10_000),
+    gmTickSeconds: Number(env.GM_TICK_SECONDS ?? 90),
+    gmIdleMinutes: Number(env.GM_IDLE_MINUTES ?? 20),
     logLevel: env.LOG_LEVEL ?? 'info',
   };
 }

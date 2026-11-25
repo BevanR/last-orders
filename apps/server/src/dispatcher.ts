@@ -9,17 +9,24 @@ export interface DispatcherOptions {
   fetch?: typeof fetch;
   now?: () => number;
   log?: (msg: string) => void;
+  /**
+   * Periodic game upkeep run on every pass before the queue is checked: timed act changes and
+   * game-master ticks. Returns how many jobs it enqueued.
+   */
+  periodic?: () => Promise<number>;
 }
 
 export interface TickResult {
   requeued: number;
+  /** Jobs enqueued by the periodic game upkeep. */
+  enqueued: number;
   pending: number;
   pinged: boolean;
 }
 
 /**
- * Keeps jobs moving. Each tick returns expired leases to the queue and, while pending jobs
- * exist, pings the agent's wake URL. Repeated pings back off exponentially until the queue
+ * Keeps jobs moving. Each tick runs the periodic game upkeep, returns expired leases to the
+ * queue and, while pending jobs exist, pings the agent's wake URL. Repeated pings back off exponentially until the queue
  * empties; new work (`kick`) pings at once.
  */
 export class Dispatcher {
@@ -88,19 +95,32 @@ export class Dispatcher {
   }
 
   private async pass(): Promise<TickResult> {
+    let enqueued = 0;
+    if (this.opts.periodic) {
+      try {
+        enqueued = await this.opts.periodic();
+      } catch (err) {
+        this.log(`game upkeep failed: ${(err as Error).message}`);
+      }
+      // New work: ping now rather than waiting out the backoff.
+      if (enqueued) {
+        this.nextPingAt = 0;
+        this.backoffMs = this.minBackoffMs;
+      }
+    }
     const requeued = await this.jobs.requeueExpired();
     if (requeued) this.log(`requeued ${requeued} expired job(s)`);
     const pending = await this.jobs.pendingCount();
     if (pending === 0) {
       this.backoffMs = this.minBackoffMs;
       this.nextPingAt = 0;
-      return { requeued, pending, pinged: false };
+      return { requeued, enqueued, pending, pinged: false };
     }
-    if (!this.opts.wakeUrl || this.now() < this.nextPingAt) return { requeued, pending, pinged: false };
+    if (!this.opts.wakeUrl || this.now() < this.nextPingAt) return { requeued, enqueued, pending, pinged: false };
     const ok = await this.ping();
     this.nextPingAt = this.now() + this.backoffMs;
     this.backoffMs = Math.min(this.backoffMs * 2, this.maxBackoffMs);
-    return { requeued, pending, pinged: ok };
+    return { requeued, enqueued, pending, pinged: ok };
   }
 
   private async ping(): Promise<boolean> {

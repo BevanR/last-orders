@@ -19,7 +19,7 @@ kill_timeout = "10s"
   NODE_ENV = "production"
   # The engine's placeholder case. Change to "/app/case/last-orders.case.json" when the
   # authored case file is on `main`; the image copies `case/` to /app/case.
-  CASE_FILE = "/app/packages/engine/test/fixtures/fixture.case.json"
+  CASE_FILE = "/app/case/last-orders.case.json"
   # The agent's wake endpoint on the Sprite, for example "https://<sprite-url>/wake".
   # Empty until the Sprite URL is known: the server then queues jobs but never pings the agent.
   AGENT_WAKE_URL = ""

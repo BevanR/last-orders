@@ -13,6 +13,12 @@ export interface GameRow {
   spend_cents: string;
   spend_cap_cents: number;
   last_progress_at: Date;
+  act_started_at: Record<string, string>;
+  last_activity_at: Date;
+  last_gm_tick_at: Date | null;
+  ended_at: Date | null;
+  commentary: string | null;
+  commentary_simulated: boolean;
 }
 
 /**
@@ -39,8 +45,8 @@ export async function loadState(q: Db | Tx, game: GameRow, now = Date.now()): Pr
     'SELECT id, display_name, is_host FROM players WHERE game_id = $1 ORDER BY created_at, id',
     [game.id],
   );
-  const suspects = await q.query<{ suspect_id: string; state: string }>(
-    'SELECT suspect_id, state FROM suspect_states WHERE game_id = $1',
+  const suspects = await q.query<{ suspect_id: string; thread_id: string; state: string }>(
+    'SELECT suspect_id, thread_id, state FROM suspect_states WHERE game_id = $1',
     [game.id],
   );
   const discoveries = await q.query<{ evidence_id: string; player_id: string }>(
@@ -55,30 +61,70 @@ export async function loadState(q: Db | Tx, game: GameRow, now = Date.now()): Pr
     'SELECT transition_id FROM testimony_transitions WHERE game_id = $1 ORDER BY id',
     [game.id],
   );
-  const visits = await q.query<{ location_id: string; player_id: string }>(
-    'SELECT location_id, player_id FROM location_visits WHERE game_id = $1',
+  const visits = await q.query<{ location_id: string; action_id: string; player_id: string }>(
+    'SELECT location_id, action_id, player_id FROM location_visits WHERE game_id = $1 ORDER BY first_at',
     [game.id],
   );
-  const interventions = await q.query<{ intervention_id: string }>(
-    'SELECT intervention_id FROM game_interventions WHERE game_id = $1',
+  const presented = await q.query<{ suspect_id: string; evidence_id: string; player_id: string; at: Date }>(
+    `SELECT i.suspect_id, m.presented_evidence_id AS evidence_id, i.player_id, m.created_at AS at
+       FROM messages m JOIN interviews i ON i.id = m.interview_id
+      WHERE i.game_id = $1 AND m.presented_evidence_id IS NOT NULL
+      ORDER BY m.id`,
     [game.id],
   );
-  const prefixed = (prefix: string) =>
-    interventions.rows
-      .map((r) => r.intervention_id)
-      .filter((id) => id.startsWith(prefix))
-      .map((id) => id.slice(prefix.length));
+  const interviewed = await q.query<{ suspect_id: string }>(
+    `SELECT DISTINCT i.suspect_id FROM interviews i
+      WHERE i.game_id = $1
+        AND EXISTS (SELECT 1 FROM messages m WHERE m.interview_id = i.id AND m.role = 'player')`,
+    [game.id],
+  );
+  const interventions = await q.query<{ intervention_id: string; text: string; created_at: Date }>(
+    'SELECT intervention_id, text, created_at FROM game_interventions WHERE game_id = $1 ORDER BY created_at, intervention_id',
+    [game.id],
+  );
+  const accusation = await q.query<{
+    player_id: string;
+    suspect_id: string;
+    evidence_ids: string[];
+    reasoning: string;
+    created_at: Date;
+  }>('SELECT * FROM accusations WHERE game_id = $1', [game.id]);
+  const suspectStates: GameState['suspectStates'] = {};
+  for (const r of suspects.rows) (suspectStates[r.suspect_id] ??= {})[r.thread_id] = r.state;
+  const a = accusation.rows[0];
   return {
     status: game.status,
     act: game.act,
+    actStartedAt: Object.fromEntries(
+      Object.entries(game.act_started_at ?? {}).map(([k, v]) => [Number(k), new Date(v).getTime()]),
+    ),
     players: players.rows.map((p) => ({ id: p.id, name: p.display_name, isHost: p.is_host })),
-    suspectStates: Object.fromEntries(suspects.rows.map((r) => [r.suspect_id, r.state])),
+    suspectStates,
     discoveries: discoveries.rows.map((r) => ({ evidenceId: r.evidence_id, playerId: r.player_id })),
     board: board.rows.map((r) => ({ evidenceId: r.evidence_id, sharedBy: r.shared_by })),
     firedTransitions: fired.rows.map((r) => r.transition_id),
-    visits: visits.rows.map((r) => ({ locationId: r.location_id, playerId: r.player_id })),
-    hintsGiven: prefixed('hint:'),
-    eventsFired: prefixed('event:'),
+    visits: visits.rows.map((r) => ({ locationId: r.location_id, actionId: r.action_id, playerId: r.player_id })),
+    presentations: presented.rows.map((r) => ({
+      suspectId: r.suspect_id,
+      evidenceId: r.evidence_id,
+      playerId: r.player_id,
+      at: r.at.getTime(),
+    })),
+    interviewed: interviewed.rows.map((r) => r.suspect_id),
+    interventions: interventions.rows.map((r) => ({
+      id: r.intervention_id,
+      text: r.text,
+      at: r.created_at.getTime(),
+    })),
+    accusation: a
+      ? {
+          playerId: a.player_id,
+          suspectId: a.suspect_id,
+          evidenceIds: a.evidence_ids,
+          reasoning: a.reasoning,
+          at: a.created_at.getTime(),
+        }
+      : null,
     lastProgressAt: game.last_progress_at.getTime(),
     now,
   };

@@ -21,6 +21,12 @@ const RULE_STATUS: Record<RuleErrorCode, number> = {
   evidence_not_held: 403,
   unknown_suspect: 404,
   no_next_act: 409,
+  unknown_action: 404,
+  action_locked: 403,
+  accusation_not_open: 409,
+  accusation_submitted: 409,
+  invalid_accusation: 400,
+  no_hint: 409,
 };
 
 /** Convert an engine rule error to an HTTP error; pass anything else through. */

@@ -556,3 +556,67 @@ The game master may deliver these at any time. None adds a fact.
 6. The 3-minute car trip lives in the layout text. The player map must show it.
 7. The doubt about Dougal in Act II lasts only until E5 or E7 is found. Both sit in Act II locations that open at once, so a fast group may skip the doubt.
 8. The Mermaid graph parses but has not been rendered to an image, so its layout is not checked.
+
+---
+
+## Implementation notes
+
+Added 25 November 2026, when this bible was translated into `case/last-orders.case.json`. The
+sections above stay the source of truth. Where they left a gap or disagreed, the JSON makes the
+smallest change that keeps the case playable, and the change is listed here.
+
+**Gaps filled with new authored text (no new facts):**
+
+1. **Act intros.** §9 gives narration only for the change to Act II. The JSON adds an Act I intro
+   ("The sergeant wants first accounts from all four... The cellar is closed, apart from the foot
+   of the stairs.") and an Act III intro ("Decide together who killed Helen Marsh, and which cards
+   prove it.").
+2. **Transition reactions.** §8 gives each transition's new account but no stage direction. Each
+   transition has a one-line direction for the performer, for example TL2: "He stares at the
+   scarf. His hand goes to his throat, where it should be."
+3. **"I don't know" lines.** §5 requires an in-character "I don't know" but writes none. Each
+   suspect has one in their voice, for example Lionel: "No idea. I deal in facts, and I haven't
+   got that one."
+4. **Forceful accusations against the innocents.** §5 gives only Lionel's line. Dougal uses his
+   own voice line ("Look, I shouted..."); Tessa says "She was my mum. We'd only just got each
+   other back."; Aroha says "I don't do fuss. I do fritters. I never left that bench."
+5. **Game-master texts.** §11 names the Boot Room and Woodshed highlights and the Act III
+   suggestion but gives no wording. The JSON uses "Nobody has looked in the Boot Room yet.",
+   "Nobody has searched the Woodshed yet." and "The group looks ready for Act 3: Accusation."
+6. **Verdict and red-herring texts.** §9 names the outcomes and §10 and §12 explain the herrings.
+   The JSON adds a short player-facing text for each outcome and herring, built from §10 and §12.
+
+**Rules made precise:**
+
+7. **"Given their Act I account"** (§9, Act I to Act II) counts a suspect once any player has
+   taken a turn with them, because the reply to a first turn is always the account.
+8. **"Not visited for 5 minutes"** (§11 highlights). Boot Room: Act II has run 5 minutes and nobody
+   has used it. Woodshed: it is open, nobody has used it, and 5 minutes have passed with no new
+   card or story change.
+9. **Hint order versus H3's condition.** §11 says H3 never comes before H2. The engine keeps that
+   order even in Act III, so if H2 never becomes due (E2, E7 and E8 all found), the game master
+   never offers H3. The host can still give the next hint by hand at any time, in order.
+10. **The group accusation.** §9 says the group submits one accusation. Any player may submit it
+    for the group; it is final, and it closes the investigation actions (§9: "until the
+    accusation is submitted"). The host then ends the game to show the reveal.
+11. **Which red herrings were followed** is derived from actions: Dougal's (E2, E5 or E6 shown to
+    Dougal, or Dougal accused), Tessa's (E3 shown to Tessa, or Tessa accused), the cooking label
+    (E1 shown to Aroha, or Aroha accused), the whitebait (E4 found or shown to Aroha).
+
+**Contradictions and small fixes:**
+
+12. **Who keeps the books.** `clue-graph.md` (C4, path 1) says Lionel states in his Act I account
+    that he keeps the books; §15 says "books" was removed from that account. The JSON follows §15:
+    Lionel gives it only if asked directly, and TD2 and Tessa ("Lionel has done the books
+    forever") still establish it.
+13. **Lionel's "already told" line for E7 after TL1.** §5.1 lists "I've told you. I walked by the
+    sea." only for L-SEAWARD reached by TL2. The JSON uses it in L-SEAWARD whichever route reached
+    it, because E7 is TL1's own trigger.
+14. **Lionel's scarf after TL1.** §5.1 says the scarf lie is replaced at L-SEAWARD but TL1 does not
+    say with what. The JSON uses TL2's wording ("I must have dropped my scarf out on the sea side.
+    Someone else has done the rest.") on both routes.
+15. **Lionel's 18:40 fallback.** §5.1 says he denies touching the hatch bolt; the line ends "I never
+    touched any bolt." It applies only after TA1 and before he reaches L-CELLAR.
+16. **Stage directions inside accounts.** TL1's "(He still claims he went to the car afterwards.)"
+    and TL5's note that the rest of his account stays are not spoken. The first is an authorised
+    lie in L-SEAWARD; the second is how the engine combines thread accounts anyway.

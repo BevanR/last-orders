@@ -30,7 +30,12 @@ export interface AppContext {
 const NameSchema = z.object({ displayName: z.string().trim().min(1).max(40) });
 const TextSchema = z.object({ text: z.string().trim().min(1).max(500) });
 const IdParam = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/);
-const LocationBody = z.object({ locationId: IdParam });
+const InspectBody = z.object({ locationId: IdParam, actionId: IdParam });
+const AccuseBody = z.object({
+  suspectId: IdParam,
+  evidenceIds: z.array(IdParam).max(10),
+  reasoning: z.string().trim().max(1_000).default(''),
+});
 const EvidenceBody = z.object({ evidenceId: IdParam });
 const HostClaimBody = z.object({ hostToken: z.string().min(16).max(128) });
 
@@ -60,12 +65,19 @@ export async function buildApp(
   const hub = new NotifyHub(config.databaseUrl, (m) => app.log.warn(m));
   await hub.start();
   const jobs = new JobQueue(db, cases, { leaseSeconds: config.leaseSeconds, maxAttempts: config.maxJobAttempts });
+  // The dispatcher and the game service refer to each other: upkeep runs on dispatcher ticks,
+  // and player actions kick the dispatcher.
+  let games: GameService | null = null;
   const dispatcher = new Dispatcher(jobs, {
     wakeUrl: config.agentWakeUrl,
     intervalMs: config.dispatcherIntervalMs,
     log,
+    periodic: () => games!.periodic(),
   });
-  const games = new GameService(db, cases, jobs, () => dispatcher.kick());
+  games = new GameService(db, cases, jobs, () => dispatcher.kick(), {
+    gmTickMs: config.gmTickSeconds * 1000,
+    idleMs: config.gmIdleMinutes * 60_000,
+  });
 
   await app.register(fastifyCookie);
 
@@ -100,7 +112,7 @@ export async function buildApp(
   app.post('/api/rooms', async (req, reply) => {
     limit(roomsPerIp, req.ip);
     const { displayName } = parseBody(NameSchema, req.body);
-    const r = await games.createRoom(displayName);
+    const r = await games!.createRoom(displayName);
     setSessionCookie(reply, r.sessionToken, config.cookieSecure);
     return { roomCode: r.roomCode, hostUrl: `/h/${r.hostToken}`, inviteUrl: `/r/${r.roomCode}` };
   });
@@ -108,7 +120,7 @@ export async function buildApp(
   app.post<{ Params: RoomParams }>('/api/rooms/:code/join', async (req, reply) => {
     limit(joinsPerIp, req.ip);
     const { displayName } = parseBody(NameSchema, req.body);
-    const r = await games.join(req.params.code, displayName);
+    const r = await games!.join(req.params.code, displayName);
     setSessionCookie(reply, r.sessionToken, config.cookieSecure);
     return { roomCode: req.params.code.toUpperCase() };
   });
@@ -116,58 +128,78 @@ export async function buildApp(
   app.post('/api/host/claim', async (req, reply) => {
     limit(joinsPerIp, req.ip);
     const { hostToken } = parseBody(HostClaimBody, req.body);
-    const r = await games.claimHost(hostToken);
+    const r = await games!.claimHost(hostToken);
     setSessionCookie(reply, r.sessionToken, config.cookieSecure);
     return { roomCode: r.roomCode };
   });
 
-  app.get<{ Params: RoomParams }>('/api/rooms/:code/state', async (req) => games.view(await member(req)));
+  app.get<{ Params: RoomParams }>('/api/rooms/:code/state', async (req) => games!.view(await member(req)));
 
   app.post<{ Params: RoomParams }>('/api/rooms/:code/start', async (req) => {
     const s = await member(req);
     requireHost(s);
-    await games.start(s);
+    await games!.start(s);
     return { ok: true };
   });
 
   app.post<{ Params: RoomParams }>('/api/rooms/:code/advance', async (req) => {
     const s = await member(req);
     requireHost(s);
-    await games.advance(s);
+    await games!.advance(s);
     return { ok: true };
   });
 
   app.post<{ Params: RoomParams }>('/api/rooms/:code/inspect', async (req) => {
     const s = await member(req);
     limit(actionsPerPlayer, s.playerId);
-    const { locationId } = parseBody(LocationBody, req.body);
-    return games.inspect(s, locationId);
+    const { locationId, actionId } = parseBody(InspectBody, req.body);
+    return games!.inspect(s, locationId, actionId);
+  });
+
+  app.post<{ Params: RoomParams }>('/api/rooms/:code/accuse', async (req) => {
+    const s = await member(req);
+    limit(actionsPerPlayer, s.playerId);
+    const { suspectId, evidenceIds, reasoning } = parseBody(AccuseBody, req.body);
+    return games!.accuse(s, suspectId, evidenceIds, reasoning);
+  });
+
+  app.post<{ Params: RoomParams }>('/api/rooms/:code/end', async (req) => {
+    const s = await member(req);
+    requireHost(s);
+    await games!.end(s);
+    return { ok: true };
+  });
+
+  app.post<{ Params: RoomParams }>('/api/rooms/:code/hint', async (req) => {
+    const s = await member(req);
+    requireHost(s);
+    return games!.giveHint(s);
   });
 
   app.post<{ Params: RoomParams }>('/api/rooms/:code/share', async (req) => {
     const s = await member(req);
     limit(actionsPerPlayer, s.playerId);
     const { evidenceId } = parseBody(EvidenceBody, req.body);
-    return games.share(s, evidenceId);
+    return games!.share(s, evidenceId);
   });
 
   app.get<{ Params: SuspectParams }>('/api/rooms/:code/interviews/:suspectId', async (req) => {
     const s = await member(req);
-    return games.interview(s, parseBody(IdParam, req.params.suspectId));
+    return games!.interview(s, parseBody(IdParam, req.params.suspectId));
   });
 
   app.post<{ Params: SuspectParams }>('/api/rooms/:code/interviews/:suspectId/messages', async (req) => {
     const s = await member(req);
     limit(turnsPerPlayer, s.playerId);
     const { text } = parseBody(TextSchema, req.body);
-    return { message: await games.sendMessage(s, parseBody(IdParam, req.params.suspectId), text) };
+    return { message: await games!.sendMessage(s, parseBody(IdParam, req.params.suspectId), text) };
   });
 
   app.post<{ Params: SuspectParams }>('/api/rooms/:code/interviews/:suspectId/present', async (req) => {
     const s = await member(req);
     limit(turnsPerPlayer, s.playerId);
     const { evidenceId } = parseBody(EvidenceBody, req.body);
-    return { message: await games.present(s, parseBody(IdParam, req.params.suspectId), evidenceId) };
+    return { message: await games!.present(s, parseBody(IdParam, req.params.suspectId), evidenceId) };
   });
 
   // ---- Server-sent events ----
@@ -294,5 +326,5 @@ export async function buildApp(
   });
 
   if (opts.startDispatcher !== false) dispatcher.start();
-  return { app, db, jobs, dispatcher, games, hub, cases };
+  return { app, db, jobs, dispatcher, games: games!, hub, cases };
 }

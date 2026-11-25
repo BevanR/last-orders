@@ -1,4 +1,5 @@
 import type { AddressInfo } from 'node:net';
+import { fileURLToPath } from 'node:url';
 import { AppClient, SimulatedAdapter, Worker } from '@last-orders/agent';
 import { buildApp, type AppContext } from '../src/app.js';
 import { loadConfig, type Config } from '../src/config.js';
@@ -6,6 +7,10 @@ import { loadConfig, type Config } from '../src/config.js';
 export const TEST_DATABASE_URL =
   process.env.TEST_DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/last_orders_test';
 export const SECRET = 'test-secret';
+export const FIXTURE_CASE = fileURLToPath(
+  new URL('../../../packages/engine/test/fixtures/fixture.case.json', import.meta.url),
+);
+export const REAL_CASE = fileURLToPath(new URL('../../../case/last-orders.case.json', import.meta.url));
 
 export interface TestServer extends AppContext {
   config: Config;
@@ -23,6 +28,7 @@ export async function startServer(overrides: Partial<Config> = {}): Promise<Test
     agentWakeUrl: '',
     cookieSecure: false,
     webDist: '/nonexistent',
+    caseFile: FIXTURE_CASE,
     ...overrides,
   };
   const ctx = await buildApp(config, { startDispatcher: false });
@@ -44,6 +50,8 @@ export interface Res<T = any> {
 export class Player {
   cookie = '';
   roomCode = '';
+  /** Every response body this player received, as text, in order. */
+  readonly log: string[] = [];
 
   constructor(readonly baseUrl: string) {}
 
@@ -59,6 +67,7 @@ export class Player {
     const setCookie = res.headers.get('set-cookie');
     if (setCookie) this.cookie = setCookie.split(';')[0]!;
     const text = await res.text();
+    this.log.push(text);
     return { status: res.status, body: text ? JSON.parse(text) : null };
   }
 
@@ -69,8 +78,20 @@ export class Player {
   state() {
     return this.req('GET', this.room('/state'));
   }
-  inspect(locationId: string) {
-    return this.req('POST', this.room('/inspect'), { locationId });
+  inspect(locationId: string, actionId: string) {
+    return this.req('POST', this.room('/inspect'), { locationId, actionId });
+  }
+  accuse(suspectId: string, evidenceIds: string[], reasoning = '') {
+    return this.req('POST', this.room('/accuse'), { suspectId, evidenceIds, reasoning });
+  }
+  advance() {
+    return this.req('POST', this.room('/advance'));
+  }
+  end() {
+    return this.req('POST', this.room('/end'));
+  }
+  hint() {
+    return this.req('POST', this.room('/hint'));
   }
   share(evidenceId: string) {
     return this.req('POST', this.room('/share'), { evidenceId });

@@ -84,6 +84,7 @@ Agent (`apps/agent`):
 |---|---|---|
 | `APP_URL` | `http://localhost:8080` | The app server. |
 | `AGENT_SHARED_SECRET` | (required) | Same value as the server's. |
+| `AGENT_SHARED_SECRET_FILE` | (unset) | A file holding the secret, used instead of `AGENT_SHARED_SECRET` (the Sprite does this). |
 | `MODEL_ADAPTER` | `simulated` | `simulated` or `anthropic`. |
 | `MODEL` | `claude-sonnet-5-5` | Model for the `anthropic` adapter. |
 | `ANTHROPIC_BASE_URL` | (SDK default) | The Sprites gateway URL in production. |
@@ -107,3 +108,51 @@ package is not in the repo) and the `last_orders` database:
 npm run build
 npm run test:e2e
 ```
+
+## Deploy
+
+Pushes to `main` deploy after CI passes. Nothing deploys from other branches.
+
+| Piece | Where | How |
+|---|---|---|
+| App + web client | Fly App `last-orders`, region `syd`, one `shared-cpu-1x` 512 MB machine | `.github/workflows/deploy.yml` runs `flyctl deploy --remote-only --ha=false`. The `Dockerfile` builds engine, server and web; migrations run when the server starts. Config is in `fly.toml`. |
+| Agent | Sprite `last-orders-gm` | The same workflow runs `infra/sprite/deploy-agent.sh`: it bundles the agent into one file (`npm run bundle -w @last-orders/agent` → `apps/agent/dist/agent.mjs`), uploads it, and restarts the Sprite service `last-orders-agent`. Untested against the live Sprites API. |
+
+`.github/workflows/ci.yml` runs on every push and pull request: typecheck, build, unit and
+integration tests against a Postgres 16 service, the agent bundle, the Playwright end-to-end
+test (simulated adapter), and a Docker build whose container must answer `GET /healthz`.
+
+Repository secrets. Each deploy job skips with a notice when its secret is missing.
+
+| Secret | Used by |
+|---|---|
+| `FLY_API_TOKEN` | App deploy. A deploy token for app `last-orders` is enough. |
+| `SPRITES_TOKEN` | Agent deploy. A Sprites API token for org `bevan-rudge`. |
+
+Repository variables `AGENT_MODEL` and `AGENT_MODEL_ADAPTER` override the agent's model
+(defaults `claude-sonnet-5-5` and `anthropic`).
+
+Runtime settings that are not secrets live in `fly.toml` `[env]`. Two need a value later:
+
+- `AGENT_WAKE_URL` is empty until the Sprite's URL is known. While it is empty the server queues
+  jobs but never wakes the agent. Set it to `<Sprite service URL>/wake` and deploy again. The URL
+  must answer `POST /wake` without Sprite URL authentication.
+- `CASE_FILE` points at the engine's placeholder case. Change it to
+  `/app/case/last-orders.case.json` once the authored case is on `main`.
+
+`GET /healthz` returns 200 `{"ok":true,"db":"up"}`, or 503 when `SELECT 1` fails or takes over
+2 seconds. Fly's health check uses it.
+
+If the first deploy fails its health check with a TLS certificate error in the logs, the MPG
+certificate does not verify under node-postgres, which treats `sslmode=require` as
+`verify-full`. Appending `&uselibpqcompat=true` to the `DATABASE_URL` secret gives libpq's
+meaning instead: encrypted, not verified.
+
+Build and run the image locally:
+
+```bash
+docker build -t last-orders .
+docker run --rm --network host -e PORT=8080 \
+  -e DATABASE_URL=postgres://postgres:postgres@localhost:5432/last_orders last-orders
+```
+

@@ -52,6 +52,15 @@ Only the Messages API (plus token counting, batches) and `/v1/models` are forwar
   `FLY_PERSONAL_ORG_TOKEN` should generate it, set it as a Fly app secret (Machines API
   `POST /v1/apps/last-orders/secrets/AGENT_SHARED_SECRET`) and write it to the Sprite, without
   printing it.
+- Deploys (branch `deploy`, see README "Deploy"): pushes to `main` deploy the app with
+  `flyctl deploy` from GitHub Actions, then upload the agent to the Sprite with
+  `infra/sprite/deploy-agent.sh`. Repo secrets needed: `FLY_API_TOKEN` (Bevan) and
+  `SPRITES_TOKEN`. Without them the jobs skip with a notice.
+- The agent runs on the Sprite as service `last-orders-agent`: `node
+  /home/sprite/last-orders/agent.mjs`, wake server on port 8080. It reads the shared secret from
+  `/home/sprite/.config/last-orders/agent-shared-secret` (`AGENT_SHARED_SECRET_FILE`). The
+  Sprite session should write the secret there, or change `AGENT_SECRET_FILE` in the script.
+- `AGENT_WAKE_URL` is a plain env value in `fly.toml`, empty until the Sprite URL is known.
 
 ## Architecture
 

@@ -5,30 +5,45 @@ export function Board({ code, view, onChange }: { code: string; view: View; onCh
   const [error, setError] = useState('');
   const share = (id: string) => api.share(code, id).then(onChange, (e: Error) => setError(e.message));
   return (
-    <section className="stack">
-      <h2>Evidence board</h2>
-      {view.board.length === 0 && <p className="muted">Nothing pinned yet. Share what you find.</p>}
-      <div className="cards">
-        {view.board.map((e) => (
-          <article key={e.id} className="evidence" data-evidence={e.id}>
-            <h3>{e.name}</h3>
-            <p className="card-text">{e.description}</p>
-            <p className="muted small">Pinned by {e.sharedBy}</p>
-          </article>
-        ))}
+    <section className="board-tab">
+      <div className="section-head">
+        <h2>Evidence board</h2>
+        <p className="muted small">Shared with everyone in the room. Anyone can present a pinned card.</p>
       </div>
-      <h2>Your notebook</h2>
+      <div className="corkboard">
+        {view.board.length === 0 && <p className="cork-empty">Nothing pinned yet. Share what you find.</p>}
+        <div className="cards">
+          {view.board.map((e) => (
+            <article key={e.id} className="evidence pinned" data-evidence={e.id}>
+              <span className="pin" aria-hidden="true" />
+              <p className="tag-label">Exhibit {e.id.toUpperCase()}</p>
+              <h3>{e.name}</h3>
+              <p className="card-text">{e.description}</p>
+              <p className="pinned-by">Pinned by {e.sharedBy}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+      <div className="section-head">
+        <h2>Your notebook</h2>
+        <p className="muted small">What you found. Private until you share it.</p>
+      </div>
       {error && <p className="error">{error}</p>}
-      {view.notebook.length === 0 && <p className="muted">You have not found anything yet.</p>}
-      <div className="cards">
+      {view.notebook.length === 0 && <p className="muted">You have not found anything yet. Try the Lodge.</p>}
+      <div className="cards notebook">
         {view.notebook.map((e) => (
-          <article key={e.id} className="evidence private" data-notebook={e.id}>
+          <article key={e.id} className={e.shared ? 'evidence private shared' : 'evidence private'} data-notebook={e.id}>
+            <p className="tag-label">
+              Exhibit {e.id.toUpperCase()} · {e.shared ? 'on the board' : 'private'}
+            </p>
             <h3>{e.name}</h3>
             <p className="card-text">{e.description}</p>
             {e.shared ? (
-              <p className="muted small">On the board.</p>
+              <p className="pinned-by">On the board.</p>
             ) : (
-              <button onClick={() => void share(e.id)}>Share to board</button>
+              <button className="ink" onClick={() => void share(e.id)}>
+                Share to board
+              </button>
             )}
           </article>
         ))}

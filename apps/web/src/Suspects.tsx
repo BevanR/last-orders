@@ -1,6 +1,22 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, type Interview, type Message, type View } from './api.js';
 import type { MessageEvent } from './Game.js';
+import { Silhouette } from './Silhouette.js';
+
+/**
+ * Splits a reply for display. A simulated reply arrives as `[simulated] Name: (stage) "words"`; the
+ * transcript already names the speaker and labels the reply simulated, so only the words are shown,
+ * with any stage direction apart. Other text is shown as it is.
+ */
+export function replyParts(m: Message, speaker: string): { stage: string; words: string } {
+  if (!m.simulated || m.role !== 'suspect') return { stage: '', words: m.text };
+  let t = m.text.replace(/^\[simulated\]\s*/, '');
+  if (t.startsWith(`${speaker}:`)) t = t.slice(speaker.length + 1).trim();
+  const stage = /^\(([^)]*)\)\s*/.exec(t);
+  if (stage) t = t.slice(stage[0].length);
+  const quoted = /^"([\s\S]*)"$/.exec(t);
+  return { stage: stage?.[1] ?? '', words: quoted ? quoted[1]! : t };
+}
 
 export function Suspects({ code, view, messages }: { code: string; view: View; messages: EventTarget }) {
   const [open, setOpen] = useState<string | null>(null);
@@ -8,16 +24,28 @@ export function Suspects({ code, view, messages }: { code: string; view: View; m
   if (suspect)
     return <InterviewRoom code={code} view={view} suspect={suspect} messages={messages} onBack={() => setOpen(null)} />;
   return (
-    <section className="stack">
-      {view.suspects.map((s) => (
-        <article key={s.id} className="card suspect" data-suspect={s.id}>
-          <h3>
-            {s.name} <span className="muted small">{s.role}</span>
-          </h3>
-          <p>{s.description}</p>
-          <button onClick={() => setOpen(s.id)}>Interview</button>
-        </article>
-      ))}
+    <section className="suspects">
+      <p className="section-intro muted">
+        Four people sat at that dinner or cooked it. Each interview is private to you.
+      </p>
+      <div className="dossiers">
+        {view.suspects.map((s, i) => (
+          <article key={s.id} className="dossier" data-suspect={s.id}>
+            <div className="dossier-tab">File {String(i + 1).padStart(2, '0')}</div>
+            <div className="dossier-body">
+              <Silhouette id={s.id} />
+              <div className="dossier-text">
+                <h3>{s.name}</h3>
+                <p className="dossier-role">{s.role}</p>
+                <p>{s.description}</p>
+              </div>
+            </div>
+            <button className="primary" onClick={() => setOpen(s.id)}>
+              Interview
+            </button>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }
@@ -90,44 +118,85 @@ function InterviewRoom(props: {
     }
   };
 
+  const me = view.me?.name ?? 'You';
+
   return (
     <section className="interview">
       <div className="interview-head">
-        <button className="link" onClick={props.onBack}>
+        <button className="link back" onClick={props.onBack}>
           ← Suspects
         </button>
-        <h2>{suspect.name}</h2>
-        <span className="muted small">Private: only you see this conversation.</span>
+        <div className="interview-who">
+          <Silhouette id={suspect.id} size="sm" />
+          <div>
+            <h2>{suspect.name}</h2>
+            <p className="dossier-role">{suspect.role}</p>
+          </div>
+        </div>
+        <span className="private-note">Private: only you see this conversation.</span>
       </div>
-      <div className="chat" aria-live="polite">
-        {iv?.messages.length === 0 && (
-          <div className="empty-chat">
-            <p className="muted">Ask {suspect.name} anything, or start with their account of the evening.</p>
-            <button disabled={closed} onClick={() => void say('Tell me what happened tonight.')}>
-              Ask for their account
-            </button>
-          </div>
-        )}
-        {iv?.messages.map((m) => (
-          <div key={m.id} className={`bubble ${m.role}`} data-role={m.role}>
-            {m.presentedEvidenceId && <span className="badge evidence-badge">Evidence</span>}
-            {m.text}
-            {m.simulated && <span className="badge">simulated</span>}
-          </div>
-        ))}
-        {waiting && <div className="bubble suspect typing">{suspect.name} is thinking…</div>}
-        <div ref={endRef} />
+      <div className="transcript paper">
+        <p className="file-label">
+          <span>Interview transcript</span>
+          <span>{suspect.name}</span>
+        </p>
+        <div className="chat" aria-live="polite">
+          {iv?.messages.length === 0 && (
+            <div className="empty-chat">
+              <p>Ask {suspect.name} anything, or start with their account of the evening.</p>
+              <button className="ink" disabled={closed} onClick={() => void say('Tell me what happened tonight.')}>
+                Ask for their account
+              </button>
+            </div>
+          )}
+          {iv?.messages.map((m) => {
+            if (m.presentedEvidenceId)
+              return (
+                <div key={m.id} className={`bubble ${m.role} exhibit-shown`} data-role={m.role}>
+                  <span className="tag-label">
+                    {m.role === 'player' ? `${me} presents` : 'Presented'} · Exhibit {m.presentedEvidenceId.toUpperCase()}
+                  </span>
+                  <span className="words">{m.text}</span>
+                </div>
+              );
+            const { stage, words } = replyParts(m, suspect.name);
+            return (
+              <div key={m.id} className={`bubble ${m.role}`} data-role={m.role}>
+                <span className="speaker">
+                  {m.role === 'player' ? me : m.role === 'suspect' ? suspect.name : 'Note'}
+                  {m.simulated && <span className="badge sim">simulated</span>}
+                </span>
+                {stage && <span className="stage">({stage})</span>}
+                <span className="words">{words}</span>
+              </div>
+            );
+          })}
+          {waiting && (
+            <div className="bubble suspect typing">
+              <span className="speaker">{suspect.name}</span>
+              <span className="words">
+                {suspect.name} is thinking<span className="dots" aria-hidden="true" />
+              </span>
+            </div>
+          )}
+          <div ref={endRef} />
+        </div>
       </div>
       {error && <p className="error">{error}</p>}
       {closed ? (
         <p className="muted">The accusation is in. Interviews are closed.</p>
       ) : (
-        <>
+        <div className="desk">
           <form className="composer" onSubmit={send}>
+            <label className="sr-only" htmlFor="ask-input">
+              Your question
+            </label>
             <input
+              id="ask-input"
               name="message"
               value={text}
               maxLength={500}
+              autoComplete="off"
               placeholder={`Ask ${suspect.name}…`}
               onChange={(e) => setText(e.target.value)}
               disabled={waiting}
@@ -137,13 +206,17 @@ function InterviewRoom(props: {
             </button>
           </form>
           <div className="present">
+            <label className="sr-only" htmlFor="present-select">
+              Evidence to show
+            </label>
             <select
+              id="present-select"
               name="evidence"
               value={evidenceId}
               onChange={(e) => setEvidenceId(e.target.value)}
               disabled={waiting}
             >
-              <option value="">Present evidence…</option>
+              <option value="">{presentable.length ? 'Show an exhibit…' : 'No exhibits yet'}</option>
               {presentable.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.name}
@@ -154,7 +227,7 @@ function InterviewRoom(props: {
               Present
             </button>
           </div>
-        </>
+        </div>
       )}
     </section>
   );

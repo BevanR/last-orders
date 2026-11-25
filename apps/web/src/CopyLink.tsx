@@ -10,7 +10,7 @@ export function CopyLink({ label, url }: { label: string; url: string }) {
     <div className="copy">
       <span className="muted small">{label}</span>
       <div className="copy-row">
-        <input readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
+        <input readOnly aria-label={label} value={url} onFocus={(e) => e.currentTarget.select()} />
         <button
           onClick={() =>
             navigator.clipboard?.writeText(url).then(

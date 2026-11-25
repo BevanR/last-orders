@@ -93,9 +93,7 @@ export function redact(c: CaseFile, s: GameState, audience: Audience): GameView 
       return k ? [{ ...k, sharedBy: nameOf(b.sharedBy) }] : [];
     }),
     actions:
-      viewerId === null
-        ? { inspect: [], interview: [], share: [], present: [] }
-        : availableActions(c, s, viewerId),
+      viewerId === null ? { inspect: [], interview: [], share: [], present: [] } : availableActions(c, s, viewerId),
   };
   if (viewerId !== null) view.me = s.players.find((p) => p.id === viewerId);
   if (audience.kind === 'host') {

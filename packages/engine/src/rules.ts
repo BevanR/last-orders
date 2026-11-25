@@ -131,9 +131,7 @@ export function present(
         !s.firedTransitions.includes(t.id),
     ) ?? null;
   const revealed = transition
-    ? c.evidence.filter(
-        (e) => e.discovery.action === 'transition' && e.discovery.transition_id === transition.id,
-      )
+    ? c.evidence.filter((e) => e.discovery.action === 'transition' && e.discovery.transition_id === transition.id)
     : [];
   return { suspect, evidence, transition, revealed };
 }

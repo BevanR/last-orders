@@ -68,13 +68,11 @@ export function newGameState(c: CaseFile, now: number, players: PlayerRef[] = []
 export function evaluateCondition(cond: Condition, s: GameState): boolean {
   if ('always' in cond) return true;
   if ('act_at_least' in cond) return s.act >= cond.act_at_least;
-  if ('evidence_discovered' in cond)
-    return s.discoveries.some((d) => d.evidenceId === cond.evidence_discovered);
+  if ('evidence_discovered' in cond) return s.discoveries.some((d) => d.evidenceId === cond.evidence_discovered);
   if ('evidence_shared' in cond) return s.board.some((b) => b.evidenceId === cond.evidence_shared);
   if ('location_visited' in cond) return s.visits.some((v) => v.locationId === cond.location_visited);
   if ('transition_fired' in cond) return s.firedTransitions.includes(cond.transition_fired);
-  if ('suspect_in_state' in cond)
-    return s.suspectStates[cond.suspect_in_state.suspect] === cond.suspect_in_state.state;
+  if ('suspect_in_state' in cond) return s.suspectStates[cond.suspect_in_state.suspect] === cond.suspect_in_state.state;
   if ('minutes_since_progress_at_least' in cond)
     return (s.now - s.lastProgressAt) / 60_000 >= cond.minutes_since_progress_at_least;
   if ('hint_given' in cond) return s.hintsGiven.includes(cond.hint_given);

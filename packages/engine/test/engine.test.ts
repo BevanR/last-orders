@@ -20,9 +20,10 @@ import {
   type GameState,
 } from '../src/index.js';
 
-const raw = JSON.parse(
-  readFileSync(new URL('./fixtures/fixture.case.json', import.meta.url), 'utf8'),
-) as Record<string, unknown>;
+const raw = JSON.parse(readFileSync(new URL('./fixtures/fixture.case.json', import.meta.url), 'utf8')) as Record<
+  string,
+  unknown
+>;
 const c: CaseFile = parseCase(raw);
 
 const A = { id: 'p-a', name: 'Alice', isHost: true };
@@ -122,9 +123,7 @@ describe('rules', () => {
     late.transitions[0].min_act = 2;
     const c2 = parseCase(late);
     expect(present(c2, s, A.id, 'ada', 'torn-receipt').transition).toBeNull();
-    expect(present(c2, { ...s, act: 2 }, A.id, 'ada', 'torn-receipt').transition?.id).toBe(
-      'ada-admits-stockroom',
-    );
+    expect(present(c2, { ...s, act: 2 }, A.id, 'ada', 'torn-receipt').transition?.id).toBe('ada-admits-stockroom');
   });
 
   it('advances acts manually and automatically', () => {
@@ -183,9 +182,7 @@ describe('redaction', () => {
 
   it('shows a player their own notebook but not other players unshared finds', () => {
     const s = active({ discoveries: [{ evidenceId: 'torn-receipt', playerId: A.id }] });
-    expect(redact(c, s, { kind: 'player', playerId: A.id }).notebook.map((e) => e.id)).toEqual([
-      'torn-receipt',
-    ]);
+    expect(redact(c, s, { kind: 'player', playerId: A.id }).notebook.map((e) => e.id)).toEqual(['torn-receipt']);
     expect(redact(c, s, { kind: 'player', playerId: B.id }).notebook).toEqual([]);
     expect(redact(c, s, { kind: 'public' }).notebook).toEqual([]);
     s.board.push({ evidenceId: 'torn-receipt', sharedBy: A.id });
@@ -196,10 +193,7 @@ describe('redaction', () => {
 
   it('hides locked locations and gives host controls only to the host', () => {
     const s = active();
-    expect(redact(c, s, { kind: 'player', playerId: B.id }).locations.map((l) => l.id)).toEqual([
-      'bar',
-      'kitchen',
-    ]);
+    expect(redact(c, s, { kind: 'player', playerId: B.id }).locations.map((l) => l.id)).toEqual(['bar', 'kitchen']);
     expect(redact(c, s, { kind: 'player', playerId: B.id }).host).toBeUndefined();
     expect(redact(c, s, { kind: 'host', playerId: A.id }).host).toEqual({
       canStart: false,
@@ -209,9 +203,7 @@ describe('redaction', () => {
   });
 
   it('includes the solution once the game has ended', () => {
-    expect(redact(c, active({ status: 'ended' }), { kind: 'public' }).solution?.killer_suspect_id).toBe(
-      'bram',
-    );
+    expect(redact(c, active({ status: 'ended' }), { kind: 'public' }).solution?.killer_suspect_id).toBe('bram');
   });
 });
 

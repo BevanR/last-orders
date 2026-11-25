@@ -53,9 +53,7 @@ export function buildSuspectContext(
   const stateId = s.suspectStates[suspectId] ?? suspect.initial_state;
   const state = suspect.states.find((x) => x.id === stateId) ?? suspect.states[0]!;
   const act = c.acts[s.act - 1] ?? c.acts[0]!;
-  const presentedIds = [
-    ...new Set(opts.history.map((h) => h.presentedEvidenceId).filter((x): x is string => !!x)),
-  ];
+  const presentedIds = [...new Set(opts.history.map((h) => h.presentedEvidenceId).filter((x): x is string => !!x))];
   const transition = opts.firedTransitionId
     ? c.transitions.find((t) => t.id === opts.firedTransitionId && t.suspect_id === suspectId)
     : undefined;
@@ -83,8 +81,7 @@ export function buildSuspectContext(
     fired_transition: transition
       ? {
           reaction: transition.reaction,
-          new_account:
-            suspect.states.find((x) => x.id === transition.to_state)?.account ?? state.account,
+          new_account: suspect.states.find((x) => x.id === transition.to_state)?.account ?? state.account,
         }
       : null,
     history: opts.history.map((h) => ({ ...h })),

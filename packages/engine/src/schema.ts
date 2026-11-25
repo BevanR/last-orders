@@ -1,9 +1,7 @@
 import { z } from 'zod';
 
 /** Lower-case slug used for every authored id. */
-export const IdSchema = z
-  .string()
-  .regex(/^[a-z0-9][a-z0-9_-]*$/, 'ids are lower-case slugs: a-z, 0-9, "_" and "-"');
+export const IdSchema = z.string().regex(/^[a-z0-9][a-z0-9_-]*$/, 'ids are lower-case slugs: a-z, 0-9, "_" and "-"');
 
 /**
  * A condition over game state. Conditions gate locations, evidence, act advances, hints and
@@ -31,9 +29,7 @@ export const ConditionSchema: z.ZodType<Condition> = z.lazy(() =>
     z.object({ evidence_shared: IdSchema }).strict(),
     z.object({ location_visited: IdSchema }).strict(),
     z.object({ transition_fired: IdSchema }).strict(),
-    z
-      .object({ suspect_in_state: z.object({ suspect: IdSchema, state: IdSchema }).strict() })
-      .strict(),
+    z.object({ suspect_in_state: z.object({ suspect: IdSchema, state: IdSchema }).strict() }).strict(),
     z.object({ minutes_since_progress_at_least: z.number().min(0) }).strict(),
     z.object({ hint_given: IdSchema }).strict(),
     z.object({ all: z.array(ConditionSchema) }).strict(),
@@ -219,8 +215,7 @@ function conditionRefs(c: Condition, out: { kind: string; id: string }[] = []) {
 
 /** The case schema, including referential integrity checks across sections. */
 export const CaseSchema = CaseObjectSchema.superRefine((c, ctx) => {
-  const issue = (message: string, path: (string | number)[] = []) =>
-    ctx.addIssue({ code: 'custom', message, path });
+  const issue = (message: string, path: (string | number)[] = []) => ctx.addIssue({ code: 'custom', message, path });
 
   for (const [name, list] of [
     ['suspects', c.suspects],
@@ -248,8 +243,7 @@ export const CaseSchema = CaseObjectSchema.superRefine((c, ctx) => {
   for (const s of c.suspects) known[`state:${s.id}`] = new Set(s.states.map((st) => st.id));
 
   c.suspects.forEach((s, i) => {
-    for (const d of duplicates(s.states.map((st) => st.id)))
-      issue(`duplicate state "${d}"`, ['suspects', i, 'states']);
+    for (const d of duplicates(s.states.map((st) => st.id))) issue(`duplicate state "${d}"`, ['suspects', i, 'states']);
     if (!known[`state:${s.id}`]!.has(s.initial_state))
       issue(`unknown initial_state "${s.initial_state}"`, ['suspects', i, 'initial_state']);
   });
@@ -265,10 +259,8 @@ export const CaseSchema = CaseObjectSchema.superRefine((c, ctx) => {
     const s = suspects.get(t.suspect_id);
     if (!s) return issue(`unknown suspect "${t.suspect_id}"`, ['transitions', i, 'suspect_id']);
     const states = known[`state:${s.id}`]!;
-    if (!states.has(t.from_state))
-      issue(`unknown from_state "${t.from_state}"`, ['transitions', i, 'from_state']);
-    if (!states.has(t.to_state))
-      issue(`unknown to_state "${t.to_state}"`, ['transitions', i, 'to_state']);
+    if (!states.has(t.from_state)) issue(`unknown from_state "${t.from_state}"`, ['transitions', i, 'from_state']);
+    if (!states.has(t.to_state)) issue(`unknown to_state "${t.to_state}"`, ['transitions', i, 'to_state']);
     if (!known.evidence!.has(t.evidence_id))
       issue(`unknown evidence "${t.evidence_id}"`, ['transitions', i, 'evidence_id']);
     if (t.min_act > c.acts.length)
@@ -285,9 +277,7 @@ export const CaseSchema = CaseObjectSchema.superRefine((c, ctx) => {
   c.evidence.forEach((e, i) => checkCondition(e.unlock, ['evidence', i, 'unlock']));
   c.acts.forEach((a, i) => checkCondition(a.auto_advance, ['acts', i, 'auto_advance']));
   c.hints.forEach((h, i) => checkCondition(h.condition, ['hints', i, 'condition']));
-  c.atmospheric_events.forEach((e, i) =>
-    checkCondition(e.condition, ['atmospheric_events', i, 'condition']),
-  );
+  c.atmospheric_events.forEach((e, i) => checkCondition(e.condition, ['atmospheric_events', i, 'condition']));
 
   if (!suspects.has(c.solution.killer_suspect_id))
     issue(`unknown killer "${c.solution.killer_suspect_id}"`, ['solution', 'killer_suspect_id']);

@@ -1,0 +1,1094 @@
+{
+  "id": "last-orders",
+  "title": "Last Orders",
+  "intro": "Tarakihi Head Lodge sits alone on a headland on the West Coast of the South Island, forty minutes of gravel road from the nearest town. Tonight Helen Marsh, who has run the lodge for thirty-one years, held her retirement dinner: whitebait fritters, blue cod, a pavlova, and a 1991 magnum of pinot noir she has been saving since the year she bought the place, for \"the day I hand over the keys\". At ten to four the storm took out the Kōtuku Creek bridge, so nobody is going anywhere. At ten past ten Helen was found at the foot of her cellar stairs. You are trampers stuck in the lodge's bunk wing, and the police sergeant on the phone has asked you to keep everyone apart and find out what you can before first light. Four people sat at that dinner or cooked it. Every one of them is hiding something. Only one of them is hiding a killing.",
+  "layout": "The front of the lodge faces east onto a gravel car park, about 30 metres from the front door; a trip to a car and back takes about 3 minutes. The seaward side faces west: a deck, a dune path of black ironsand, the cellar's storm hatch at the north-west corner, and the woodshed beside it. A path runs along the north side from the front to the seaward side, past the office window and the generator lean-to. Downstairs: the front hall (front door, boot room, office, main stairs, lounge), the dining room in the middle, and the kitchen to the north-west of the dining room. The back corridor runs from the dining room past the open kitchen doorway to a corner. Round the corner are the downstairs toilet and the cellar door, and a short passage from the front hall also joins there, so the cellar door can be reached from the hall without passing the kitchen. The main stairs are the only stairs to the upper floor, and their bottom is visible from the dining room through the hall door. Helen's bedroom is upstairs at the north-west corner; its window looks down on the woodshed. The bunk wing is a separate building to the south.",
+  "acts": [
+    {
+      "number": 1,
+      "name": "First Accounts",
+      "intro": "It is half past ten. The sergeant wants first accounts from all four, and a careful look round before first light. The cellar is closed, apart from the foot of the stairs.",
+      "auto_advance": {
+        "any": [
+          {
+            "all": [{ "evidence_discovered": "e1" }, { "evidence_discovered": "e3" }, { "accounts_given_at_least": 3 }]
+          },
+          { "minutes_since_act_started": { "act": 1, "minutes": 12 } }
+        ]
+      }
+    },
+    {
+      "number": 2,
+      "name": "Contradictions",
+      "intro": "A gust slams something heavy at the far end of the cellar, and keeps slamming it.",
+      "auto_advance": { "minutes_since_act_started": { "act": 2, "minutes": 18 } },
+      "suggest_advance": {
+        "all": [
+          { "evidence_discovered": "e8" },
+          { "any": [{ "evidence_discovered": "e2" }, { "evidence_discovered": "e7" }] }
+        ]
+      }
+    },
+    {
+      "number": 3,
+      "name": "Accusation",
+      "intro": "First light is a few hours off. Decide together who killed Helen Marsh, and which cards prove it. Every room and every suspect stays open until you submit."
+    }
+  ],
+  "shared_knowledge": [
+    {
+      "text": "At about twenty past nine Dougal and Helen argued at the table about the price cut. Dougal said: \"You're giving it away, Helen.\" Helen said: \"It's not your call, Dougal.\"",
+      "known_by": ["lionel", "dougal", "tessa", "aroha"]
+    },
+    {
+      "text": "At about twenty-five to ten Helen announced she would fetch the 1991 magnum herself for a toast at ten, and nobody else was to touch it.",
+      "known_by": ["lionel", "dougal", "tessa", "aroha"]
+    },
+    {
+      "text": "At about twenty to ten Lionel said his blood-pressure pills were in his car and left the table.",
+      "known_by": ["lionel", "dougal", "tessa"]
+    },
+    {
+      "text": "Lionel wore a red tartan scarf at dinner.",
+      "known_by": ["lionel", "dougal", "tessa", "aroha"]
+    },
+    {
+      "text": "At about quarter past six Helen asked Lionel for a word in the office.",
+      "known_by": ["lionel", "dougal", "tessa"]
+    },
+    {
+      "text": "Lionel came back to the table at about three minutes to ten with wet hair, in lodge slippers, without his scarf.",
+      "known_by": ["dougal", "tessa"]
+    },
+    {
+      "text": "Dinner was whitebait fritters at ten past seven, then blue cod, kūmara mash and greens at quarter to eight, with a Marlborough sauvignon blanc and then a Central Otago pinot noir. Tessa gave a speech at half past eight and Dougal a short one at quarter to nine.",
+      "known_by": ["lionel", "dougal", "tessa", "aroha"]
+    },
+    {
+      "text": "At ten Aroha passed the pavlovas through the serving hatch. Helen was not back for the toast; Dougal joked that she was drinking it herself.",
+      "known_by": ["lionel", "dougal", "tessa", "aroha"]
+    },
+    {
+      "text": "At about ten past ten Tessa and Aroha found Helen face down across the bottom steps of the cellar with a broken bottle beside her. Dougal and Lionel came down after Tessa shouted, and Lionel told everyone not to touch anything. Dougal rang 111 from the office at about twenty past ten. The police cannot reach the lodge before first light and asked that the four of you be kept apart.",
+      "known_by": ["lionel", "dougal", "tessa", "aroha"]
+    },
+    {
+      "text": "The Kōtuku Creek bridge went out at ten to four this afternoon, and the two waitstaff went home early at three because of the weather warning.",
+      "known_by": ["lionel", "dougal", "tessa", "aroha"]
+    }
+  ],
+  "suspects": [
+    {
+      "id": "lionel",
+      "name": "Lionel Fitch",
+      "age": 71,
+      "role": "Old family friend",
+      "public_description": "Seventy-one. A retired accountant from Greymouth, a widower, and one of Helen's oldest friends. Tessa calls him Uncle Lionel.",
+      "persona": "Lionel Fitch, 71, retired accountant from Greymouth, widower (his wife Judith died in 2019). One of Helen Marsh's oldest friends; Tessa calls him Uncle Lionel. Proud, private and very controlled. He is polite to the trampers and gives nothing away he does not have to. When cornered he turns cold and formal and repeats what he has already said rather than adding anything new.",
+      "voice": "Dry, precise, fond of numbers and small jokes about them. Short, tidy sentences. Turns cold and formal when cornered.",
+      "voice_examples": [
+        "I deal in facts. They're cheaper than opinions and they keep better.",
+        "Twenty to ten, give or take. I didn't audit the clock."
+      ],
+      "first_account": "I've known Helen since before Tessa was born. Lovely dinner. At about twenty to ten I went out to my car for my blood-pressure pills; I'd left them in the glovebox. Black as pitch and blowing a gale, so it took me longer than it should have. Came straight back in. I never went near the cellar until Tessa screamed. That cellar was Helen's kingdom.",
+      "knows": [
+        "You are 71, a retired accountant from Greymouth, and a widower. Your wife Judith died in 2019.",
+        "You have known Helen since before Tessa was born.",
+        "Tonight you wore your red tartan wool scarf and your good brown brogues to dinner.",
+        "You were at the table from seven until about twenty to ten, and back at about three minutes to ten.",
+        "After Tessa shouted, you went down to the cellar with Dougal and told everyone not to touch anything."
+      ],
+      "not_volunteered": ["You have kept the lodge's books since Helen bought the place in 1995."],
+      "threads": [
+        {
+          "id": "where",
+          "initial_state": "lionel-car-story",
+          "states": [
+            {
+              "id": "lionel-car-story",
+              "keep_quiet": [
+                "The storm hatch, the sea side of the lodge and the woodshed: you say you know nothing about them.",
+                "Anything about the cellar before Tessa screamed."
+              ],
+              "authorised_lies": [
+                {
+                  "text": "I went straight out to my car for my pills and came straight back.",
+                  "when": "when asked where you went at twenty to ten, or why you were away so long"
+                },
+                {
+                  "text": "I never went near the cellar until Tessa screamed.",
+                  "when": "when asked about the cellar, tonight or before dinner"
+                },
+                { "text": "My scarf? Must have left it in the car.", "when": "when asked about your scarf" },
+                {
+                  "text": "My shoes were soaked from the car park, so I changed in the boot room. Helen's sign.",
+                  "when": "when asked about your slippers or your shoes"
+                }
+              ]
+            },
+            {
+              "id": "lionel-sea-walk",
+              "keep_quiet": ["The storm hatch and the woodshed: you say you know nothing about them."],
+              "authorised_lies": [
+                {
+                  "text": "I needed air, so I walked round the sea side to look at the surf, then went to the car. That's where the sand's from, and why I changed my shoes.",
+                  "when": "when asked where you went or about the sand"
+                },
+                { "text": "I never went in the cellar until Tessa screamed.", "when": "when asked about the cellar" },
+                {
+                  "text": "I must have dropped my scarf out on the sea side. Someone else has done the rest.",
+                  "when": "when asked about your scarf"
+                },
+                {
+                  "text": "I've never touched that magnum outside its rack.",
+                  "when": "when asked about the 1991 magnum"
+                }
+              ]
+            },
+            {
+              "id": "lionel-in-cellar",
+              "facts": [
+                "When you went down to look at the 1991 before dinner, you slid back the storm-hatch bolt, so you could talk to Helen later without an audience.",
+                "The storm-hatch bolt can only be drawn from inside.",
+                "At about twenty to ten you went out the front, round to the sea side and in through the storm hatch, and talked to Helen at the foot of the stairs.",
+                "Helen had found money missing from the books. You call it loans and say you'd have paid it back. She gave you until Monday; you asked for more time and she said no.",
+                "You took the magnum because you had touched it, wrapped it in your scarf and put it in the woodshed. You meant to throw it in the sea.",
+                "You came back round the north side, in the front door, and changed into lodge slippers in the boot room."
+              ],
+              "authorised_lies": [
+                {
+                  "text": "She turned to go up with the bottle and she slipped, went down and didn't move. I panicked. I knew how it would look.",
+                  "when": "when asked how Helen died or what happened at the foot of the stairs"
+                },
+                {
+                  "text": "I don't know anything about any other bottle.",
+                  "when": "when asked about the smashed cooking-wine bottle"
+                },
+                { "text": "I never struck her.", "when": "when accused of hitting Helen" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "money",
+          "initial_state": "lionel-money-hidden",
+          "states": [
+            {
+              "id": "lionel-money-hidden",
+              "keep_quiet": ["Money, the lodge's accounts and the price cut: you say that was Helen's business."],
+              "authorised_lies": [
+                {
+                  "text": "Helen and I talked about her speech before dinner.",
+                  "when": "when asked what you and Helen talked about in the office at about quarter past six"
+                },
+                {
+                  "text": "She sold because she was tired. Thirty-one winters on this coast.",
+                  "when": "when asked why Helen sold the lodge"
+                }
+              ]
+            },
+            {
+              "id": "lionel-money-admitted",
+              "facts": [
+                "There were some irregularities in the lodge's books. You call them loans and say you always meant to put the money back.",
+                "Helen raised it with you in the office before dinner. That is what you talked about, not her speech.",
+                "You say it's a motive, not a murder."
+              ]
+            }
+          ]
+        }
+      ],
+      "reactions": [
+        {
+          "evidence_id": "e1",
+          "when": {
+            "any": [
+              { "suspect_in_state": { "suspect": "lionel", "state": "lionel-car-story" } },
+              { "suspect_in_state": { "suspect": "lionel", "state": "lionel-sea-walk" } }
+            ]
+          },
+          "line": "Poor Helen. She must have grabbed the nearest bottle when she fell."
+        },
+        {
+          "evidence_id": "e1",
+          "when": { "suspect_in_state": { "suspect": "lionel", "state": "lionel-in-cellar" } },
+          "line": "I've told you. I know nothing about that bottle."
+        },
+        {
+          "evidence_id": "e2",
+          "when": { "suspect_in_state": { "suspect": "lionel", "state": "lionel-car-story" } },
+          "line": "That hatch has leaked sand for thirty years. Nothing to do with me."
+        },
+        {
+          "evidence_id": "e2",
+          "when": { "suspect_in_state": { "suspect": "lionel", "state": "lionel-in-cellar" } },
+          "line": "I've told you what happened."
+        },
+        {
+          "evidence_id": "e3",
+          "when": { "suspect_in_state": { "suspect": "lionel", "state": "lionel-car-story" } },
+          "line": "Fourteen minutes. I'm seventy-one and it was blowing a gale. The scarf I left in the car, and my shoes were soaked from the car park, so I changed in the boot room. Helen's sign."
+        },
+        {
+          "evidence_id": "e3",
+          "when": { "suspect_in_state": { "suspect": "lionel", "state": "lionel-sea-walk" } },
+          "line": "I told you. I walked by the sea first. It takes time at my age."
+        },
+        {
+          "evidence_id": "e3",
+          "when": { "suspect_in_state": { "suspect": "lionel", "state": "lionel-in-cellar" } },
+          "line": "Yes. That was when I went in. I've told you the rest."
+        },
+        { "evidence_id": "e4", "line": "I'm seventy-one. I don't care where my whitebait swam." },
+        { "evidence_id": "e5", "line": "Not my call. Ask whoever was in the office." },
+        {
+          "evidence_id": "e6",
+          "when": {
+            "any": [
+              { "suspect_in_state": { "suspect": "lionel", "state": "lionel-money-admitted" } },
+              { "suspect_in_state": { "suspect": "lionel", "state": "lionel-in-cellar" } }
+            ]
+          },
+          "line": "I've said what I'll say about the money."
+        },
+        {
+          "evidence_id": "e7",
+          "when": { "suspect_in_state": { "suspect": "lionel", "state": "lionel-sea-walk" } },
+          "line": "I've told you. I walked by the sea."
+        },
+        {
+          "evidence_id": "e7",
+          "when": { "suspect_in_state": { "suspect": "lionel", "state": "lionel-in-cellar" } },
+          "line": "I've told you what happened."
+        },
+        {
+          "evidence_id": "e8",
+          "when": {
+            "all": [
+              { "suspect_in_state": { "suspect": "lionel", "state": "lionel-sea-walk" } },
+              { "transition_fired": "tl2" }
+            ]
+          },
+          "line": "I've told you. I dropped it out there, and someone else did the rest."
+        },
+        {
+          "evidence_id": "e8",
+          "when": { "suspect_in_state": { "suspect": "lionel", "state": "lionel-in-cellar" } },
+          "line": "I've told you what happened."
+        }
+      ],
+      "default_line": "I don't see what that has to do with me.",
+      "dont_know_line": "No idea. I deal in facts, and I haven't got that one.",
+      "situational_lines": [
+        {
+          "id": "forceful-accusation",
+          "cue": "The detective accuses you outright of killing Helen, shouts at you, or demands a confession.",
+          "keywords": [
+            "you killed",
+            "killed her",
+            "murderer",
+            "you did it",
+            "confess",
+            "you hit her",
+            "you struck",
+            "admit it",
+            "you murdered"
+          ],
+          "line": "I've been shouted at by better people than you, usually in March."
+        },
+        {
+          "id": "aroha-saw-cellar",
+          "cue": "The detective says Aroha saw you go down to the cellar before dinner, at about twenty to seven (18:40).",
+          "keywords": ["18:40", "twenty to seven", "6:40", "aroha saw"],
+          "when": {
+            "all": [
+              { "transition_fired": "ta1" },
+              { "not": { "suspect_in_state": { "suspect": "lionel", "state": "lionel-in-cellar" } } }
+            ]
+          },
+          "line": "Yes, Helen let me have a look at the 1991 before dinner. Is that a crime now? I never touched any bolt."
+        }
+      ]
+    },
+    {
+      "id": "dougal",
+      "name": "Dougal Price",
+      "age": 58,
+      "role": "Helen's business partner",
+      "public_description": "Fifty-eight. A Christchurch property developer who has owned a quarter of the lodge since 2014. He argued with Helen at dinner.",
+      "persona": "Dougal Price, 58, Christchurch property developer. Helen's 25% partner in the lodge since 2014, when Helen needed a new roof. His company has had a terrible year and is close to going under. Big, friendly, all salesman's bluster; he sweats and over-explains when caught out. He is ashamed of something he did tonight that has nothing to do with Helen's death.",
+      "voice": "Big, friendly, salesman's bluster. Talks in round numbers. Over-explains when caught. Calls people mate.",
+      "voice_examples": [
+        "Look, I shouted. I shout at the telly too, and it's still alive.",
+        "Four hundred grand, Helen. You don't give that away, you lose it."
+      ],
+      "first_account": "Helen and I had words about the price at dinner. I won't pretend we didn't; you'll have heard. My company's had a bad year, and every dollar matters. About quarter to ten I took a whisky into the lounge to cool off and sat by the fire on my own. Back about five to ten. Didn't see a soul.",
+      "knows": [
+        "You have known Helen twelve years.",
+        "You own 25% of the lodge. You bought in in 2014, when Helen needed a new roof.",
+        "The buyer cut the price from $3,190,000 to $2,790,000 on 6 November. The buyer said the numbers were \"soft\". You do not know the real reason.",
+        "Lionel does the lodge's books. You have never seen them; you put money in and get a cheque at Christmas.",
+        "All evening you wore your brown leather dress shoes, men's size 11. They are dry.",
+        "Lionel came back to the table about a minute after you, soaked, in lodge slippers. You assumed he had been to the car."
+      ],
+      "believes": ["Helen cut the price because she was tired and wanted out."],
+      "unrelated_secret": {
+        "text": "Tonight you rang the buyer behind Helen's back to offer your quarter share separately, for cash, at a discount, before settlement. It is a betrayal, not a crime, and you are ashamed of it.",
+        "revealed_by": "td1"
+      },
+      "threads": [
+        {
+          "id": "where",
+          "initial_state": "dougal-lounge-story",
+          "states": [
+            {
+              "id": "dougal-lounge-story",
+              "keep_quiet": [
+                "Any phone call you made tonight before the 111 call.",
+                "Anything you saw or heard from the office window or the front door.",
+                "How close your company is to going under, and what your lender wants."
+              ],
+              "authorised_lies": [
+                {
+                  "text": "I took a whisky into the lounge to cool off and sat by the fire on my own. Didn't see a soul.",
+                  "when": "when asked where you were from about quarter to ten"
+                }
+              ]
+            },
+            {
+              "id": "dougal-call-admitted",
+              "facts": [
+                "At about quarter to ten you went to the office and rang the buyer's managing director, Neil Prentice, on the desk phone, to offer him your quarter share separately, for cash, at a discount, before settlement. Behind Helen's back. Nine minutes of begging.",
+                "While you were on the phone, a couple of minutes before you hung up, you saw through the office window a torch coming back along the north side from the sea side, towards the front: someone in one of the long oilskins. Then the front door banged.",
+                "You thought the torch was someone checking the generator in the lean-to.",
+                "Your lender wants $760,000 by 30 November. At the old price your share would have covered it; at the new price it does not.",
+                "Helen's death freezes the sale until her estate is sorted out, so you cannot be paid by the thirtieth."
+              ]
+            }
+          ]
+        },
+        {
+          "id": "books",
+          "initial_state": "dougal-books-unknown",
+          "states": [
+            { "id": "dougal-books-unknown" },
+            {
+              "id": "dougal-books-cleared",
+              "facts": [
+                "Helen's note says \"forty years\". That is not you: you have known her twelve years and have never seen the books.",
+                "You now think the books are why the buyer knocked four hundred grand off. You were shouting at Helen about the price while she was carrying that."
+              ]
+            }
+          ]
+        }
+      ],
+      "reactions": [
+        { "evidence_id": "e1", "line": "That's not the 1991. Helen wouldn't toast a dog with that." },
+        { "evidence_id": "e3", "line": "There I am, leaving at quarter to. I told you I went out." },
+        { "evidence_id": "e7", "line": "Somebody's had a walk on the beach. Not me; I've been in these all night." },
+        { "evidence_id": "e8", "line": "That's Lionel's scarf. He wore it all through dinner." }
+      ],
+      "already_told_line": "I've owned up to that. I'm not proud of it.",
+      "default_line": "Can't help you with that one, sorry.",
+      "dont_know_line": "No idea, mate. Wish I could tell you.",
+      "situational_lines": [
+        {
+          "id": "forceful-accusation",
+          "cue": "The detective accuses you outright of killing Helen, or shouts at you.",
+          "keywords": ["you killed", "killed her", "murderer", "you did it", "confess", "you hit her", "admit it"],
+          "line": "Look, I shouted. I shout at the telly too, and it's still alive."
+        }
+      ]
+    },
+    {
+      "id": "tessa",
+      "name": "Tessa Marsh",
+      "age": 34,
+      "role": "Helen's daughter",
+      "public_description": "Thirty-four. Helen's only child, over from Melbourne for the farewell. She designs apps. She and Helen had not long made up after years apart.",
+      "persona": "Tessa Marsh, 34, Helen's only child. Lives in Melbourne and designs apps; has a daughter, Ivy, aged 4. She and Helen did not speak from 2016, after her father Peter died, until 2024, when they made up in front of 120 guests at a cousin's wedding. She is grieving and in shock. Quick and guarded; jokes to deflect; goes sharp when hurt.",
+      "voice": "Quick, guarded, dry jokes to deflect. Sharp when hurt. Calls Helen \"Mum\" and Lionel \"Uncle Lionel\".",
+      "voice_examples": [
+        "We spent eight years not speaking. Tonight was meant to be the sequel.",
+        "I went to fix my face. Mascara and speeches don't mix."
+      ],
+      "first_account": "I gave my speech about half eight. Mum cried, I cried, everyone pretended not to notice. At ten to ten I went to the downstairs loo, the one down the back corridor by the cellar door, to fix my face. Back just before ten. Mum still wasn't back by ten past, so I went and got Aroha and we went down together. She was at the bottom of the stairs.",
+      "knows": [
+        "Your camera has been on a tripod in the dining room since seven, taking one frame every 5 seconds for Mum's slideshow.",
+        "At about five o'clock you passed the kitchen and heard Aroha tell Mum: \"You've sold us all down the river.\"",
+        "Lionel has done the lodge's books forever. You call him Uncle Lionel.",
+        "Uncle Lionel has worn that red tartan scarf every winter since you were ten. Tonight he also wore his good brown brogues.",
+        "Mum told you Dougal is \"in a hole\" with money.",
+        "At about ten past ten you went down the back corridor to get Aroha, and the two of you went down the cellar stairs and found Mum."
+      ],
+      "not_volunteered": [
+        "At about twenty past six you went upstairs for a cardigan and heard Mum's voice through the office door: \"Monday. Not a day later.\" A man said something you couldn't hear. You knew she had taken Uncle Lionel in there; Dougal was still in the lounge with a gin.",
+        "A minute or two later you saw Uncle Lionel come out of the office looking like he'd seen a ghost. You didn't think it meant anything."
+      ],
+      "believes": ["Dougal is desperate enough for anything."],
+      "unrelated_secret": {
+        "text": "Tonight you took your late father's steel watch, the one with the cracked crystal, from Mum's dresser drawer. She had said on the phone last month that it would go to auction with the lodge's contents. You meant to tell her in the morning.",
+        "revealed_by": "tt1"
+      },
+      "threads": [
+        {
+          "id": "where",
+          "initial_state": "tessa-loo-story",
+          "states": [
+            {
+              "id": "tessa-loo-story",
+              "keep_quiet": [
+                "Where you really were from ten to ten until just before ten.",
+                "Your father's watch, on your wrist under your sleeve.",
+                "Anything you saw from Mum's bedroom window."
+              ],
+              "authorised_lies": [
+                {
+                  "text": "At ten to ten I went to the downstairs loo, the one down the back corridor by the cellar door, to fix my face. Back just before ten.",
+                  "when": "when asked where you went or where you were"
+                }
+              ]
+            },
+            {
+              "id": "tessa-watch-admitted",
+              "facts": [
+                "At ten to ten you went up the main stairs to Mum's room, not to the loo, and took Dad's steel watch from her dresser drawer. It's on your wrist. You were going to tell her in the morning.",
+                "From Mum's window you can see the woodshed by the cellar hatch. A minute or so after ten to ten there was a torch down there, stopped at the woodshed for a bit. Then it went off round the north side.",
+                "You thought the torch was someone checking the generator.",
+                "You came back down the main stairs just before ten."
+              ]
+            }
+          ]
+        },
+        {
+          "id": "heard",
+          "initial_state": "tessa-heard-unsaid",
+          "states": [
+            { "id": "tessa-heard-unsaid" },
+            {
+              "id": "tessa-heard-monday",
+              "facts": [
+                "At about twenty past six you went up for a cardigan and heard Mum's voice through the office door: \"Monday. Not a day later.\" A man said something you couldn't hear.",
+                "You knew she had taken Uncle Lionel in there; Dougal was still in the lounge with a gin.",
+                "A minute or two later Uncle Lionel came out looking like he'd seen a ghost."
+              ]
+            }
+          ]
+        }
+      ],
+      "reactions": [
+        { "evidence_id": "e1", "line": "That's not the 1991. Mum would never." },
+        { "evidence_id": "e8", "line": "That's Uncle Lionel's scarf." },
+        { "evidence_id": "e4", "line": "Oh, Aroha." },
+        { "evidence_id": "e7", "line": "Those are Uncle Lionel's good brogues. He wore them tonight." }
+      ],
+      "already_told_line": "I've told you what I know. All of it this time.",
+      "default_line": "I don't know what you want me to say about that.",
+      "dont_know_line": "No idea. Honestly.",
+      "situational_lines": [
+        {
+          "id": "forceful-accusation",
+          "cue": "The detective accuses you outright of killing your mother, or shouts at you.",
+          "keywords": ["you killed", "killed her", "murderer", "you did it", "confess", "you hit her", "admit it"],
+          "line": "She was my mum. We'd only just got each other back."
+        }
+      ]
+    },
+    {
+      "id": "aroha",
+      "name": "Aroha Mitchell",
+      "age": 46,
+      "role": "Head chef",
+      "public_description": "Forty-six. Head chef at the lodge since 2014. She cooked tonight's dinner and spent the evening in the kitchen.",
+      "persona": "Aroha Mitchell, 46, head chef at the lodge since 2014. The buyer plans contract catering, so the sale ends her job, and she is angry with Helen about it, and now sorry. Blunt, warm underneath, short sentences, kitchen humour. Proud of her food.",
+      "voice": "Blunt, warm underneath. Short sentences. Kitchen humour.",
+      "voice_examples": [
+        "I don't do fuss. I do fritters.",
+        "Helen hated being fussed over. So I didn't. I've been thinking about that all night."
+      ],
+      "first_account": "In the kitchen from half nine, building pavs at the bench by the hatch. Helen went past my door to the cellar at twenty to ten with her torch. Nobody else came past my door after her, not till Tessa at ten past. Just after the late weather finished on the radio, about ten to ten, I heard one bottle smash under the floor. I thought she'd dropped one. She'd have had my head if I'd gone running down to fuss. Then Tessa came, and we went down, and I checked for a pulse. There wasn't one.",
+      "knows": [
+        "From the bench by the serving hatch you can see through the kitchen doorway along the back corridor as far as the corner. The cellar door, the downstairs toilet and the passage from the front hall are round the corner, out of your sight.",
+        "The cooking-wine shelf is at the foot of the cellar stairs. The bottles carry your masking-tape label \"KITCHEN — COOKING\".",
+        "At about half past five you fetched a bottle of cooking wine from that shelf for the jus. You didn't go to the far end of the cellar.",
+        "On Thursday, after the wine delivery through the storm hatch, you bolted the hatch from inside, as Helen insists.",
+        "You heard one smash under the floor, not two, and no thump.",
+        "You were at the bench building pavlovas from twenty to ten until ten, apart from a few seconds at a time, like a trip to the chiller for cream.",
+        "The buyer will bring in contract caterers, so the sale ends your job.",
+        "At about five o'clock, in the kitchen, you told Helen: \"You've sold us all down the river.\""
+      ],
+      "not_volunteered": [
+        "Before dinner, at twenty to seven, Lionel went past your door to the cellar and came back up four or five minutes later. He said Helen had let him have a look at her 1991."
+      ],
+      "believes": ["Helen sold out the staff for a quiet retirement."],
+      "unrelated_secret": {
+        "text": "The whitebait run has been poor two seasons running. Tonight's fritters were made from imported frozen whitebait, and you have been doing it all year.",
+        "revealed_by": "ta2"
+      },
+      "threads": [
+        {
+          "id": "hatch",
+          "initial_state": "aroha-hatch-unconnected",
+          "states": [
+            {
+              "id": "aroha-hatch-unconnected",
+              "facts": ["You think Lionel's look at the 1991 before dinner was harmless."]
+            },
+            {
+              "id": "aroha-hatch-bolt",
+              "facts": [
+                "The storm hatch should be bolted. You bolted it yourself on Thursday after the wine delivery; you always do, and Helen checks.",
+                "Lionel was down in the cellar before dinner, at twenty to seven. He went past your door and came back up four or five minutes later, and said Helen had let him have a look at her 1991."
+              ]
+            }
+          ]
+        },
+        {
+          "id": "food",
+          "initial_state": "aroha-whitebait-story",
+          "states": [
+            {
+              "id": "aroha-whitebait-story",
+              "keep_quiet": ["The empty whitebait cartons in the chiller."],
+              "authorised_lies": [
+                {
+                  "text": "The whitebait's from my cousin's stand on Kōtuku Creek, caught in October and frozen.",
+                  "when": "when asked about the whitebait or the fritters"
+                }
+              ]
+            },
+            {
+              "id": "aroha-whitebait-admitted",
+              "facts": [
+                "The whitebait was imported. The run's been rubbish two seasons running and Helen wanted fritters for her farewell. You weren't going to give her an empty plate."
+              ]
+            }
+          ]
+        }
+      ],
+      "reactions": [
+        {
+          "evidence_id": "e1",
+          "line": "That's my cooking plonk. Bottom shelf by the stairs; anyone going down walks right past it. Helen wouldn't carry that up for a toast if you paid her."
+        },
+        { "evidence_id": "e3", "line": "See? Bench. Pavs don't build themselves." },
+        { "evidence_id": "e7", "line": "Not mine. I'm in clogs." },
+        { "evidence_id": "e8", "line": "That's Lionel's scarf. He had it on at dinner." }
+      ],
+      "already_told_line": "I've told you. Ask me something new.",
+      "default_line": "Means nothing to me. Sorry.",
+      "dont_know_line": "Couldn't tell you. I was in my kitchen.",
+      "situational_lines": [
+        {
+          "id": "forceful-accusation",
+          "cue": "The detective accuses you outright of killing Helen, or shouts at you.",
+          "keywords": ["you killed", "killed her", "murderer", "you did it", "confess", "you hit her", "admit it"],
+          "line": "I don't do fuss. I do fritters. I never left that bench."
+        }
+      ]
+    }
+  ],
+  "locations": [
+    {
+      "id": "dining-room",
+      "name": "Dining Room",
+      "description": "A long rimu table set for four, half-eaten pavlovas, a speech card with \"THANK YOU\" underlined twice. A serving hatch looks into the kitchen. Doors lead to the hall and to the back corridor. A camera on a tripod stands in the corner.",
+      "actions": [
+        {
+          "id": "camera",
+          "label": "Inspect Tessa's camera",
+          "text": "The camera is still on its tripod, still taking a frame every five seconds. You scroll back through tonight."
+        }
+      ]
+    },
+    {
+      "id": "wine-cellar",
+      "name": "Wine Cellar",
+      "description": "Fourteen steep stone steps down from the back corridor. Racks on both sides, a tasting barrel by the stairs, a low shelf of cooking wine by the bottom step. A tablecloth now covers Helen. At the far, seaward end, three steps rise to a timber storm hatch.",
+      "actions": [
+        {
+          "id": "foot-of-stairs",
+          "label": "Inspect the foot of the stairs",
+          "text": "You go carefully down the fourteen steps and look at the foot of the stairs and the racks beside them."
+        },
+        {
+          "id": "storm-hatch",
+          "label": "Inspect the storm hatch",
+          "unlock": { "act_at_least": 2 },
+          "text": "You walk to the far, seaward end of the cellar and climb the three steps to the storm hatch. It is rattling in the wind."
+        }
+      ]
+    },
+    {
+      "id": "kitchen",
+      "name": "Kitchen",
+      "description": "Steel benches, a radio on low, the smell of butter. The bench by the serving hatch looks through the kitchen doorway along the back corridor as far as the corner; the cellar door is round the corner, out of sight. A back door opens onto the gravel service yard.",
+      "actions": [
+        {
+          "id": "chiller",
+          "label": "Inspect the walk-in chiller",
+          "text": "You step into the cold of the walk-in chiller and move a few things aside."
+        }
+      ]
+    },
+    {
+      "id": "office",
+      "name": "Helen's Office",
+      "description": "Off the front hall. A cluttered desk, an old corded phone with a display, box files labelled by year. The window on the north wall looks along the north path to the generator lean-to.",
+      "unlock": { "act_at_least": 2 },
+      "actions": [
+        { "id": "desk", "label": "Inspect the desk", "text": "You go through the papers on Helen's desk." },
+        {
+          "id": "phone",
+          "label": "Inspect the phone",
+          "text": "You pick up the old corded phone and look at its display."
+        }
+      ]
+    },
+    {
+      "id": "boot-room",
+      "name": "Boot Room",
+      "description": "Off the front hall by the front door, with a door that is kept shut to keep the sand in. Oilskins on hooks, gumboots, a basket of sheepskin slippers, a shoe rack. Helen's sign: \"SAND STAYS HERE. THIS MEANS YOU.\"",
+      "unlock": { "act_at_least": 2 },
+      "actions": [
+        {
+          "id": "shoe-rack",
+          "label": "Inspect the shoe rack and coats",
+          "text": "You check the shoe rack and run a hand along the coats on their hooks."
+        }
+      ]
+    },
+    {
+      "id": "woodshed",
+      "name": "Woodshed",
+      "description": "An open-fronted shed on the black-sand dune path, right beside the storm hatch. Rain blows in sideways. A weka watches you from the woodpile.",
+      "unlock": {
+        "all": [{ "act_at_least": 2 }, { "any": [{ "evidence_discovered": "e2" }, { "transition_fired": "tt1" }] }]
+      },
+      "actions": [
+        {
+          "id": "woodpile",
+          "label": "Search the woodpile",
+          "text": "You pull logs off the woodpile one by one. The weka does not help."
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "name": "The Wrong Bottle",
+      "description": "Helen lay face down across the bottom steps, with a head injury at the back of her head. Beside her: a smashed bottle of cheap red with a masking-tape label, \"KITCHEN — COOKING\", in marker. On the rack beside the stairs, Helen's handwritten tag, \"1991 MAGNUM. TOAST, 14 NOV. HANDS OFF. — H\", hangs over an empty slot. The 1991 magnum is not in the cellar.",
+      "discovery": { "action": "inspect", "location_id": "wine-cellar", "action_id": "foot-of-stairs" },
+      "found_text": "At the foot of the stairs, beside the tablecloth, glass and a label. On the rack, a tag over an empty slot."
+    },
+    {
+      "id": "e2",
+      "name": "The Storm Hatch",
+      "description": "The bolt on the inside of the storm hatch is drawn back. When unbolted, the hatch opens from outside with a pull; it cannot be bolted from outside. Wet black ironsand lies on the stone floor: prints of a smooth leather sole, about a men's size 11, with a crescent-shaped nick in the left heel. They go from the hatch to the foot of the stairs and back. Near the stairs they are scuffed by the people who came down after Helen was found.",
+      "discovery": { "action": "inspect", "location_id": "wine-cellar", "action_id": "storm-hatch" },
+      "unlock": { "act_at_least": 2 },
+      "found_text": "The bolt is drawn back, and the floor below the hatch is gritty with wet black sand."
+    },
+    {
+      "id": "e3",
+      "name": "The Time-lapse",
+      "description": "Tessa's camera, on a tripod since 19:00, one frame every 5 seconds, for Helen's slideshow; times are stamped to the minute. It shows the table, the serving hatch, the back-corridor door, and the hall door with the bottom of the main stairs beyond it. The front door, boot room and office are out of shot. Key frames:\n21:40 Helen leaves by the back-corridor door with a torch.\n21:41 to 21:59 Aroha is at the kitchen bench, through the serving hatch. She is never out of shot for more than 20 seconds.\n21:42 Lionel leaves by the hall door, wearing a red tartan scarf.\n21:45 Dougal leaves by the hall door.\n21:50 Tessa leaves by the hall door and starts up the main stairs.\n21:56 Dougal returns.\n21:57 Lionel returns. Hair wet, lodge slippers, no scarf.\n21:58 Through the open hall door, Tessa coming down the main stairs.\n21:59 Tessa returns.\nNobody uses the back-corridor door between 21:41 and 22:08, when Tessa goes through it.",
+      "discovery": { "action": "inspect", "location_id": "dining-room", "action_id": "camera" },
+      "found_text": "The frames from twenty to ten onwards are all there, stamped to the minute."
+    },
+    {
+      "id": "e4",
+      "name": "The Whitebait Cartons",
+      "description": "Behind the ice-cream tubs in the walk-in chiller: three empty 1 kg cartons of frozen whitebait, brand \"Silverbait\", marked \"IMPORTED\". Tonight's menu card on the pass reads \"Kōtuku Creek whitebait fritters\".",
+      "discovery": { "action": "inspect", "location_id": "kitchen", "action_id": "chiller" },
+      "found_text": "Behind the ice-cream tubs, three flattened cartons someone did not want seen."
+    },
+    {
+      "id": "e5",
+      "name": "The Office Phone",
+      "description": "The old corded phone on Helen's desk. Its display keeps the last outgoing calls: \"21:46 — BUYER N PRENTICE — 09:12\" and \"22:21 — 111 — 06:40\".",
+      "discovery": { "action": "inspect", "location_id": "office", "action_id": "phone" },
+      "unlock": { "act_at_least": 2 },
+      "found_text": "The little display still holds the last two outgoing calls."
+    },
+    {
+      "id": "e6",
+      "name": "Helen's Note",
+      "description": "Under the sale agreement on the desk, a sheet of lodge notepaper in Helen's handwriting, unsigned and unaddressed: \"I've been through fifteen years of statements twice. $412,600 paid to 'sundry contractors' who never contracted anything. I told you tonight and I meant it: you tell the buyer's accountant yourself on Monday, or I will. Forty years is why you get until Monday. It is not why I'll keep quiet.\" The sale agreement shows the price changed from $3,190,000 to $2,790,000 on 6 November.",
+      "discovery": { "action": "inspect", "location_id": "office", "action_id": "desk" },
+      "unlock": { "act_at_least": 2 },
+      "found_text": "Under the sale agreement, a sheet of lodge notepaper in Helen's handwriting."
+    },
+    {
+      "id": "e7",
+      "name": "The Sandy Brogues",
+      "description": "On the boot-room rack: a pair of brown leather brogues, men's size 11, soaked and caked with wet black ironsand. The left heel has a crescent-shaped nick. One long oilskin on the hooks is soaked through. Everything else in the room is dry. (The car park is grey gravel. Black ironsand is only on the seaward side.)",
+      "discovery": { "action": "inspect", "location_id": "boot-room", "action_id": "shoe-rack" },
+      "unlock": { "act_at_least": 2 },
+      "found_text": "One pair of shoes on the rack is not like the others, and one oilskin is dripping."
+    },
+    {
+      "id": "e8",
+      "name": "The Magnum in the Scarf",
+      "description": "Pushed deep into the woodpile: an unopened magnum of Kererū Terrace Pinot Noir 1991, wrapped in a wet red tartan wool scarf. A dark smear and a few grey hairs are stuck to the base of the bottle.",
+      "discovery": { "action": "inspect", "location_id": "woodshed", "action_id": "woodpile" },
+      "unlock": {
+        "all": [{ "act_at_least": 2 }, { "any": [{ "evidence_discovered": "e2" }, { "transition_fired": "tt1" }] }]
+      },
+      "found_text": "Deep in the woodpile, your hand closes on glass wrapped in wet wool."
+    }
+  ],
+  "transitions": [
+    {
+      "id": "tl1",
+      "suspect_id": "lionel",
+      "thread_id": "where",
+      "from_state": "lionel-car-story",
+      "evidence_id": "e7",
+      "to_state": "lionel-sea-walk",
+      "reaction": "He looks at the sandy brogues for a long moment, then sets his jaw and gives a little ground, no more.",
+      "account": "All right. I didn't go straight to the car. I needed air, so I walked round the sea side to look at the surf. That's where the sand's from, and why I changed my shoes. I never went in the cellar. (He still claims he went to the car afterwards.)"
+    },
+    {
+      "id": "tl2",
+      "suspect_id": "lionel",
+      "thread_id": "where",
+      "from_state": "lionel-car-story",
+      "evidence_id": "e8",
+      "to_state": "lionel-sea-walk",
+      "reaction": "He stares at the scarf. His hand goes to his throat, where it should be.",
+      "account": "That's my scarf. Fine: I didn't go straight to the car. I walked round the sea side to clear my head, and I must have dropped it out there. Someone else has done the rest. I never went in the cellar, and I've never touched that bottle outside its rack."
+    },
+    {
+      "id": "tl3",
+      "suspect_id": "lionel",
+      "thread_id": "where",
+      "from_state": "lionel-sea-walk",
+      "evidence_id": "e2",
+      "min_act": 2,
+      "requires": { "any": [{ "transition_fired": "tl1" }, { "transition_fired": "tl2" }] },
+      "to_state": "lionel-in-cellar",
+      "also_set": [{ "thread_id": "money", "state": "lionel-money-admitted" }],
+      "reaction": "He goes very still. When he speaks again it is cold and formal, and he picks every word.",
+      "account": "Fine. I went in by the hatch. I'd slid the bolt before dinner so I could talk to her without an audience. She'd found some money missing from the books. Loans; I'd have paid them back. She gave me until Monday. I asked for more time and she said no. She turned to go up with the bottle and she slipped, went down and didn't move. I panicked. I knew how it would look. I took the bottle because I'd touched it, wrapped it in my scarf and put it in the woodshed. I meant to throw it in the sea. I never struck her. I don't know anything about any other bottle."
+    },
+    {
+      "id": "tl4",
+      "suspect_id": "lionel",
+      "thread_id": "where",
+      "from_state": "lionel-sea-walk",
+      "evidence_id": "e8",
+      "min_act": 2,
+      "requires": { "all": [{ "transition_fired": "tl1" }, { "not": { "transition_fired": "tl2" } }] },
+      "to_state": "lionel-in-cellar",
+      "also_set": [{ "thread_id": "money", "state": "lionel-money-admitted" }],
+      "reaction": "He looks at the magnum in his own scarf and goes very still. When he speaks again it is cold and formal, and he picks every word.",
+      "account": "Fine. I went in by the hatch. I'd slid the bolt before dinner so I could talk to her without an audience. She'd found some money missing from the books. Loans; I'd have paid them back. She gave me until Monday. I asked for more time and she said no. She turned to go up with the bottle and she slipped, went down and didn't move. I panicked. I knew how it would look. I took the bottle because I'd touched it, wrapped it in my scarf and put it in the woodshed. I meant to throw it in the sea. I never struck her. I don't know anything about any other bottle."
+    },
+    {
+      "id": "tl5",
+      "suspect_id": "lionel",
+      "thread_id": "money",
+      "from_state": "lionel-money-hidden",
+      "evidence_id": "e6",
+      "min_act": 2,
+      "requires": { "not": { "suspect_in_state": { "suspect": "lionel", "state": "lionel-in-cellar" } } },
+      "to_state": "lionel-money-admitted",
+      "reaction": "He takes his glasses off and cleans them before he answers.",
+      "account": "There were some irregularities. Loans, if you like. I always meant to put it back. She raised it before dinner; that's what we talked about in the office, not her speech. It's a motive, not a murder. (The rest of his account of where he went stays as it was.)"
+    },
+    {
+      "id": "td1",
+      "suspect_id": "dougal",
+      "thread_id": "where",
+      "from_state": "dougal-lounge-story",
+      "evidence_id": "e5",
+      "min_act": 2,
+      "to_state": "dougal-call-admitted",
+      "reaction": "He sags, rubs his face with both hands and starts talking too fast.",
+      "account": "Fine. That was me. I rang the buyer, Neil Prentice, to offer him my quarter share separately, cash, at a discount, before settlement. Behind Helen's back. Nine minutes of begging. And while I was on the phone, through the office window, I saw a torch coming back along the north side from the sea side, towards the front. Someone in one of the long oilskins. A couple of minutes before I hung up. Then the front door banged. I thought it was someone checking the generator. Then Lionel walked in a minute after me, soaked. I assumed he'd been to the car. For what it's worth, Helen dying wrecks me: the sale's frozen and my lender wants paying on the thirtieth."
+    },
+    {
+      "id": "td2",
+      "suspect_id": "dougal",
+      "thread_id": "books",
+      "from_state": "dougal-books-unknown",
+      "evidence_id": "e6",
+      "min_act": 2,
+      "to_state": "dougal-books-cleared",
+      "reaction": "He reads the note twice, goes red, then pale.",
+      "account": "That's not me. I've known Helen twelve years, not forty, and I've never seen the books. I put money in and get a cheque at Christmas. Lionel does the books; always has. So that's why the buyer knocked four hundred grand off. I was shouting at her about the price, and she was carrying that."
+    },
+    {
+      "id": "tt1",
+      "suspect_id": "tessa",
+      "thread_id": "where",
+      "from_state": "tessa-loo-story",
+      "evidence_id": "e3",
+      "to_state": "tessa-watch-admitted",
+      "reaction": "She looks at the frame of herself on the stairs, then pulls back her sleeve and shows you a steel watch with a cracked crystal.",
+      "account": "Fine. I didn't go to the loo. I went upstairs to Mum's room. Dad's watch was in her dresser drawer; she'd said on the phone it was going to auction with the lodge's things. I took it. It's on my wrist. I was going to tell her in the morning. And from her window you can see the woodshed by the cellar hatch. There was a torch down there, stopped at the woodshed for a bit, a minute or so after ten to ten. Then it went off round the north side. I thought it was someone checking the generator."
+    },
+    {
+      "id": "tt2",
+      "suspect_id": "tessa",
+      "thread_id": "heard",
+      "from_state": "tessa-heard-unsaid",
+      "evidence_id": "e6",
+      "min_act": 2,
+      "to_state": "tessa-heard-monday",
+      "reaction": "She reads the word Monday and stops.",
+      "account": "Monday. I heard that. About twenty past six I went up for a cardigan, and Mum's voice came through the office door: 'Monday. Not a day later.' A man said something I couldn't hear. I knew she'd taken Uncle Lionel in there; Dougal was still in the lounge with a gin. A minute or two later Lionel came out looking like he'd seen a ghost. I didn't think it meant anything."
+    },
+    {
+      "id": "ta1",
+      "suspect_id": "aroha",
+      "thread_id": "hatch",
+      "from_state": "aroha-hatch-unconnected",
+      "evidence_id": "e2",
+      "min_act": 2,
+      "to_state": "aroha-hatch-bolt",
+      "reaction": "She frowns at the drawn bolt, then stops, remembering.",
+      "account": "That hatch should be bolted. I bolted it myself on Thursday after the wine delivery. I always do; Helen checks. Hang on. Lionel was down there before dinner. Twenty to seven. Went past my door and came back up four or five minutes later. Said Helen had let him have a look at her 1991."
+    },
+    {
+      "id": "ta2",
+      "suspect_id": "aroha",
+      "thread_id": "food",
+      "from_state": "aroha-whitebait-story",
+      "evidence_id": "e4",
+      "to_state": "aroha-whitebait-admitted",
+      "reaction": "She folds her arms, then laughs once, without much fun in it.",
+      "account": "Fine. They're imported. The run's been rubbish two seasons running and Helen wanted fritters for her farewell. I wasn't going to give her an empty plate. Don't tell the trampers."
+    }
+  ],
+  "hints": [
+    {
+      "id": "h1",
+      "text": "Not everyone who went outside tonight went where they said they went.",
+      "condition": {
+        "all": [
+          { "minutes_since_act_started": { "act": 2, "minutes": 4 } },
+          {
+            "not": {
+              "at_least": {
+                "n": 2,
+                "of": [
+                  { "evidence_discovered": "e2" },
+                  { "evidence_discovered": "e7" },
+                  { "evidence_discovered": "e8" }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "h2",
+      "text": "The car park is grey gravel. The sea side is black ironsand. Check what came in from the sea side: the boot room, and the far end of the cellar.",
+      "condition": {
+        "all": [
+          { "hint_given_minutes_ago_at_least": { "hint": "h1", "minutes": 4 } },
+          {
+            "not": {
+              "all": [{ "evidence_discovered": "e2" }, { "evidence_discovered": "e7" }, { "evidence_discovered": "e8" }]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "h3",
+      "text": "Inspect the storm hatch at the far end of the cellar. Then search the woodshed beside it, and compare what you find with the time-lapse frames at 21:42 and 21:57.",
+      "variants": [
+        {
+          "when": {
+            "all": [{ "act_at_least": 2 }, { "any": [{ "evidence_discovered": "e2" }, { "transition_fired": "tt1" }] }]
+          },
+          "text": "Something was hidden close to the storm hatch. When you find it, compare what it is wrapped in with the time-lapse frames at 21:42 and 21:57."
+        }
+      ],
+      "condition": {
+        "all": [
+          {
+            "any": [{ "act_at_least": 3 }, { "hint_given_minutes_ago_at_least": { "hint": "h2", "minutes": 4 } }]
+          },
+          { "not": { "accusation_submitted": true } },
+          { "not": { "all": [{ "evidence_discovered": "e8" }, { "evidence_shared": "e8" }] } }
+        ]
+      }
+    }
+  ],
+  "atmospheric_events": [
+    {
+      "id": "lights",
+      "text": "The lights dip, hold, and come back. Somewhere outside, the generator coughs and thinks better of it."
+    },
+    {
+      "id": "rain",
+      "text": "Rain hits the iron roof so hard that, for a moment, nobody can hear themselves think."
+    },
+    { "id": "wave", "text": "A wave hits the rocks below the headland and the glasses on the sideboard ring." },
+    { "id": "weka", "text": "A weka taps on the dining-room window, unimpressed by all of you." },
+    { "id": "toast", "text": "Someone has put the jug on. The lodge smells of toast and woodsmoke." }
+  ],
+  "gm_interventions": [
+    {
+      "kind": "highlight_location",
+      "location_id": "boot-room",
+      "text": "Nobody has looked in the Boot Room yet.",
+      "condition": {
+        "all": [
+          { "minutes_since_act_started": { "act": 2, "minutes": 5 } },
+          { "not": { "location_visited": "boot-room" } }
+        ]
+      }
+    },
+    {
+      "kind": "highlight_location",
+      "location_id": "woodshed",
+      "text": "Nobody has searched the Woodshed yet.",
+      "condition": {
+        "all": [{ "minutes_since_progress_at_least": 5 }, { "not": { "location_visited": "woodshed" } }]
+      }
+    },
+    {
+      "kind": "notice",
+      "id": "lionel-changed",
+      "text": "Lionel has changed his story once. Cards he has already seen may land differently now.",
+      "condition": {
+        "all": [
+          { "any": [{ "transition_fired": "tl1" }, { "transition_fired": "tl2" }] },
+          { "not": { "suspect_in_state": { "suspect": "lionel", "state": "lionel-in-cellar" } } },
+          { "minutes_since_presented_to_at_least": { "suspect": "lionel", "minutes": 3 } }
+        ]
+      }
+    }
+  ],
+  "accusation": {
+    "min_act": 3,
+    "max_evidence": 3,
+    "outcomes": [
+      {
+        "id": "solved-cleanly",
+        "verdict": "solved",
+        "title": "Solved cleanly",
+        "text": "You named Lionel Fitch and cited both independent proofs: the magnum hidden in his scarf, and the sandy brogues whose nicked heel matches the prints at the storm hatch.",
+        "suspect_id": "lionel",
+        "cites_all": ["e7", "e8"]
+      },
+      {
+        "id": "solved",
+        "verdict": "solved",
+        "title": "Solved",
+        "text": "You named Lionel Fitch and cited evidence that ties him to the scene and the weapon.",
+        "suspect_id": "lionel",
+        "cites_any": ["e7", "e8"]
+      },
+      {
+        "id": "thin",
+        "verdict": "thin",
+        "title": "Right person, thin case",
+        "text": "You named Lionel Fitch, but without the Sandy Brogues or the Magnum in the Scarf your cards do not show it was him. The storm hatch shows someone came in from the sea side, not who.",
+        "suspect_id": "lionel"
+      },
+      {
+        "id": "unsolved",
+        "verdict": "unsolved",
+        "title": "Unsolved",
+        "text": "The group accused the wrong person. When the police arrive at first light, Helen's killer is still sitting at her table."
+      }
+    ],
+    "none_text": "The investigation ended without an accusation."
+  },
+  "solution": {
+    "killer_suspect_id": "lionel",
+    "summary": "Lionel Fitch killed Helen Marsh in the wine cellar at about 21:48 by striking her with the 1991 magnum. He came and went by the storm hatch, staged a fall, and hid the magnum in the woodshed wrapped in his scarf. He did it because Helen had found the $412,600 he took from the lodge over fifteen years and gave him until Monday to own up.",
+    "motive": "Since 2011 Lionel paid himself $412,600 of lodge money through fake \"sundry contractor\" payments. The buyer's due diligence found the gap and cut the price. Helen traced the money to him, and at 18:15 told him in the office to tell the buyer's accountant himself on Monday, or she would.",
+    "method": "At 18:40 he drew the storm-hatch bolt. At 21:42 he left the table for his \"pills\", went round the north side to the sea side and in through the hatch. When Helen refused him and turned to the stairs, he struck the back of her head once with the magnum. He smashed a cooking-wine bottle beside her to stage a fall, wrapped the magnum in his scarf, hid it in the woodpile, and came back in through the front door, changing into slippers in the boot room.",
+    "clues": [
+      {
+        "title": "The Wrong Bottle",
+        "text": "Helen went down for the 1991 and told everyone nobody else was to touch it. The bottle beside her is Aroha's cooking wine, and the magnum's slot is empty. Someone staged a fall with the nearest cheap bottle and took the real one. An accident does not remove a bottle from the room."
+      },
+      {
+        "title": "Aroha's first account",
+        "text": "Nobody passed her door after Helen, and there was exactly one smash, at about 21:49, nine minutes after Helen went down. That smash was the staging, not the fall. Her view stops at the corner, so the cellar door could still be reached from the front hall, and Lionel, Dougal and Tessa all left by the hall door."
+      },
+      {
+        "title": "The Storm Hatch",
+        "text": "The killer came and went by the hatch. The bolt was drawn from inside beforehand, and the wet black-sand prints of a nicked leather heel go from the hatch to the foot of the stairs and back."
+      },
+      {
+        "title": "The Time-lapse",
+        "text": "Three people left the table: Lionel 21:42 to 21:57, Dougal 21:45 to 21:56, Tessa 21:50 to 21:59. Tessa was seen going up and coming down the main stairs. Lionel left with a red tartan scarf and came back wet, without it, in lodge slippers."
+      },
+      {
+        "title": "The Sandy Brogues",
+        "text": "Lionel's own shoes are full of black ironsand, and the car park is gravel, so his car story cannot explain the sand. The nicked left heel matches the prints at the hatch. The soaked long oilskin matches the figure Dougal saw."
+      },
+      {
+        "title": "The Magnum in the Scarf",
+        "text": "The weapon, with a smear and grey hairs on the base, hidden beside the hatch and wrapped in the scarf Lionel wore out of the dining room."
+      },
+      {
+        "title": "Helen's Note, with Tessa, Dougal and Lionel",
+        "text": "The money went through the books, which only Lionel kept. \"Forty years\" fits Lionel, not Dougal, who has known Helen twelve. Tessa heard \"Monday. Not a day later.\" at 18:20 while Dougal was in the lounge, then saw Lionel leave the office. Lionel admits the \"loans\" when shown the note."
+      },
+      {
+        "title": "Aroha and the bolt",
+        "text": "Aroha bolted the hatch on Thursday. Lionel went down to the cellar at 18:40 and was out of sight for four or five minutes. That is when he drew the bolt, as he later admits."
+      },
+      {
+        "title": "Two sightings of one torch",
+        "text": "Tessa saw a torch stopped at the woodshed at about 21:51; Dougal saw it on the north path heading for the front at about 21:53; then the front door banged. That is Lionel's route back."
+      },
+      {
+        "title": "Lionel's last account",
+        "text": "He admits the bolt, the hatch, the argument, the money, the magnum, the scarf and the woodshed, but claims she slipped. It fails: he will not explain the smashed cooking bottle, which only he could have broken; she fell forward but her injury is at the back of her head, and her hair is on the base of the magnum; and he hid that magnum in a woodpile instead of calling for help."
+      }
+    ],
+    "narration": "At twenty to seven, Lionel Fitch went down to admire a bottle of wine and slid back a bolt. At twenty to ten he said he was going to his car. He went to the sea side instead, came in through the storm hatch and asked his oldest friend for more time. She said no and turned her back on him. He picked up the bottle she had saved for thirty-one years. Then he smashed the cooking wine beside her, wrapped the magnum in his scarf, and walked back round the house in the rain. He left the scarf in the woodpile and the sand in his shoes. The suspects remember. The evidence stays true."
+  },
+  "red_herrings": [
+    {
+      "id": "dougal-theory",
+      "title": "Dougal and the money",
+      "text": "Dougal faced ruin, shouted at Helen at 21:20, lied about the lounge, and wears size 11 leather shoes, so the note's \"money\" and \"Monday\" seemed meant for him. But the office phone shows he was on a nine-minute call to the buyer from 21:46 to 21:55, which covers the smash; the nicked heel belongs to Lionel's brogues; he has known Helen twelve years, not forty; and her death freezes the sale, which ruins him rather than saving him.",
+      "followed_when": {
+        "any": [
+          { "evidence_presented": { "suspect": "dougal", "evidence": "e5" } },
+          { "evidence_presented": { "suspect": "dougal", "evidence": "e6" } },
+          { "evidence_presented": { "suspect": "dougal", "evidence": "e2" } },
+          { "accused": "dougal" }
+        ]
+      }
+    },
+    {
+      "id": "tessa-absence",
+      "title": "Tessa's missing nine minutes",
+      "text": "Tessa did not go to the downstairs loo. She went upstairs to take her father's watch before it went to auction. The time-lapse shows her on the main stairs both ways, and from Helen's window she saw Lionel's torch at the woodshed.",
+      "followed_when": {
+        "any": [{ "evidence_presented": { "suspect": "tessa", "evidence": "e3" } }, { "accused": "tessa" }]
+      }
+    },
+    {
+      "id": "cooking-label",
+      "title": "The cooking-wine label",
+      "text": "The \"KITCHEN — COOKING\" label points at Aroha, but anyone going down the stairs walks past that shelf. The smashed bottle was the killer's staging. The time-lapse shows Aroha never out of shot at her bench for more than 20 seconds.",
+      "followed_when": {
+        "any": [{ "evidence_presented": { "suspect": "aroha", "evidence": "e1" } }, { "accused": "aroha" }]
+      }
+    },
+    {
+      "id": "whitebait",
+      "title": "Aroha's whitebait",
+      "text": "True, embarrassing, irrelevant: the Kōtuku Creek fritters were imported. Aroha lied to protect her pride, not a killer.",
+      "followed_when": {
+        "any": [{ "evidence_discovered": "e4" }, { "evidence_presented": { "suspect": "aroha", "evidence": "e4" } }]
+      }
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "last-orders",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/engine",
+    "apps/agent",
+    "apps/server",
+    "apps/web"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build -w @last-orders/engine -w @last-orders/agent -w @last-orders/server -w @last-orders/web",
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm run test -w @last-orders/engine -w @last-orders/agent -w @last-orders/server",
+    "test:e2e": "node tests/e2e/slice.e2e.mjs",
+    "dev:server": "npm run dev -w @last-orders/server",
+    "dev:agent": "npm run dev -w @last-orders/agent",
+    "dev:web": "npm run dev -w @last-orders/web"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.6",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "vitest": "^5.1.1"
+  }
+}

@@ -111,3 +111,36 @@ text; the model may not add facts.
 - E2E: Playwright, three browser contexts, simulated adapter. No paid calls.
 - Adversarial dialogue evals (release check, real model, Haiku first): invented facts,
   premature confession, unauthorised knowledge, prompt injection.
+
+## Implementation notes (milestone 3, vertical slice)
+
+Where the slice differs from, or adds detail to, the design above:
+
+- **Locking.** Every transaction that changes a game first takes the `games` row lock (after the
+  job row lock, for job completion). This serialises rule decisions per game. It is what makes a
+  testimony transition fire once under concurrent presents; the unique
+  `(game_id, suspect_id, transition_id)` row is a second guard.
+- **Event order.** `game_events.seq` is a per-game counter (`games.event_seq`) bumped under that
+  lock, so seq order is commit order and `Last-Event-ID` replay cannot skip an event.
+- **NOTIFY.** One channel, `game_events`, with the game id as payload, instead of `game_<id>`
+  channels. Each app process holds one `LISTEN` connection and fans out to its SSE streams.
+- **Discoveries are per player.** `evidence_discoveries` is unique per `(game, evidence, player)`;
+  a find is private until shared to `board_items`. Presentable evidence is the player's own finds
+  plus the board.
+- **One reply in flight per interview.** A player waits for the suspect's answer before sending
+  the next message or presentation (409 `awaiting_reply`). This keeps prompt history in order.
+  A player may have at most two pending replies across suspects.
+- **Stale replies.** `jobs.input_revision` is set when the job is claimed, which is when its
+  context is built. A completion whose suspect revision has moved on is discarded and the job
+  requeued.
+- **Extra tables.** `location_visits` (for "unvisited locations" and conditions) and
+  `game_interventions` (hints given and events fired, for the game master).
+- **Cookies.** `Secure` by default; `COOKIE_INSECURE=1` drops the flag for local `http://`.
+- **Anthropic adapter.** No `thinking` field (adaptive by default) and `output_config.effort: low`,
+  so the same request works for `claude-sonnet-5-5` and `claude-haiku-5-5`. A `refusal` stop
+  reason becomes a neutral in-character line. Server-side refusal fallbacks are not enabled
+  until the Sprites gateway has been tested with beta headers. Without `ANTHROPIC_API_KEY` the
+  adapter sends no auth header, for the gateway to add its own.
+- **Not in the slice.** The dispatcher does not enqueue `gm_tick` jobs yet; the engine's game
+  master context and allowed-intervention list exist and are tested. Accusations are a table
+  only. `CASE_FILE` defaults to the engine's placeholder fixture.

@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "dev": "tsx watch --conditions=source src/main.ts",
     "start": "node dist/main.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval": "tsx --conditions=source evals/run.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.14.0",

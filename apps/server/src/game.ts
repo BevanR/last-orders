@@ -129,15 +129,15 @@ export class GameService {
     return { roomCode: rows[0].room_code, sessionToken };
   }
 
-  async view(session: Session): Promise<GameView> {
+  /** The redacted view plus `cursor`, the event seq to resume the SSE stream from. */
+  async view(session: Session): Promise<GameView & { cursor: number }> {
     const game = await findGameByCode(this.db, session.roomCode);
     const c = await this.cases.get(game.case_version_id);
     const s = await loadState(this.db, game);
-    return redact(
-      c,
-      s,
-      session.isHost ? { kind: 'host', playerId: session.playerId } : { kind: 'player', playerId: session.playerId },
-    );
+    const audience = session.isHost
+      ? ({ kind: 'host', playerId: session.playerId } as const)
+      : ({ kind: 'player', playerId: session.playerId } as const);
+    return { ...redact(c, s, audience), cursor: Number(game.event_seq) };
   }
 
   async start(session: Session): Promise<void> {

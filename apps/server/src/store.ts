@@ -9,6 +9,7 @@ export interface GameRow {
   act: number;
   status: GameStatus;
   revision: number;
+  event_seq: string;
   spend_cents: string;
   spend_cap_cents: number;
   last_progress_at: Date;

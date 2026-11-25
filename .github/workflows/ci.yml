@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Playwright for tests/e2e/slice.e2e.mjs, which loads a global install when the repo has none.
+  PLAYWRIGHT_VERSION: 1.63.0
+
+jobs:
+  test:
+    name: Typecheck, build, tests, e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: last_orders
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/last_orders
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/last_orders_test
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Create the test database
+        run: psql "$DATABASE_URL" -c 'CREATE DATABASE last_orders_test'
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run build
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Bundle the Sprite agent
+        run: npm run bundle -w @last-orders/agent
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
+
+      - name: Install Playwright
+        run: |
+          npm install -g "playwright@${PLAYWRIGHT_VERSION}"
+          if [ "${{ steps.pw-cache.outputs.cache-hit }}" = "true" ]; then
+            playwright install-deps chromium
+          else
+            playwright install --with-deps chromium
+          fi
+
+      # The e2e is a plain Playwright script, not the test runner, so it records no traces.
+      - name: End-to-end test (simulated adapter)
+        run: npm run test:e2e
+
+  image:
+    name: Docker image builds and serves /healthz
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: last_orders
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          push: false
+          tags: last-orders:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start the image and probe /healthz
+        run: |
+          docker run -d --name app --network host \
+            -e DATABASE_URL=postgres://postgres:postgres@localhost:5432/last_orders \
+            -e CASE_FILE=/app/packages/engine/test/fixtures/fixture.case.json \
+            last-orders:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/healthz; then echo; exit 0; fi
+            sleep 1
+          done
+          docker logs app
+          exit 1
+
+      - name: Image size
+        run: docker image ls last-orders:ci

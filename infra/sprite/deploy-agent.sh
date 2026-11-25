@@ -5,7 +5,7 @@
 #   3. creates or updates the Sprite service that runs it, with the agent's environment;
 #   4. restarts the service and fails if the process exits during the start window.
 #
-# STATUS: untested against the live Sprites API. Endpoints follow
+# STATUS: upload verified against the live Sprites API on 25 November 2026; later steps untested. Endpoints follow
 # https://api.sprites.dev/openapi.json as read on 25 November 2026.
 #
 # Auth: SPRITES_TOKEN is sent as a bearer token. When it is unset, no Authorization header is
@@ -53,7 +53,12 @@ for tool in curl jq; do
 done
 
 auth=()
-if [ -n "${SPRITES_TOKEN:-}" ]; then
+# Strip all whitespace from the token. A trailing newline (easy to paste into a GitHub secret)
+# ends the HTTP header block early: curl sends "Bearer <token>\n\r\n", the server sees an empty
+# line, and every header after Authorization becomes the start of the request body. The upload
+# then silently gains those header bytes and JSON calls fail with "invalid character 'C'".
+SPRITES_TOKEN="$(printf '%s' "${SPRITES_TOKEN:-}" | tr -d '[:space:]')"
+if [ -n "$SPRITES_TOKEN" ]; then
   auth=(-H "Authorization: Bearer $SPRITES_TOKEN")
 else
   echo "deploy-agent: SPRITES_TOKEN is not set; sending no Authorization header" >&2
@@ -78,14 +83,21 @@ api GET "" | jq -r '"status: \(.status), url: \(.url)"'
 # Query-string encoding for the fs endpoints.
 urlencode() { jq -rn --arg v "$1" '$v | @uri'; }
 
-echo "==> Uploading $(wc -c <"$BUNDLE" | tr -d ' ') bytes to $AGENT_DIR/agent.mjs"
-api PUT "/fs/write?path=$(urlencode "$AGENT_DIR/agent.mjs.new")&workingDir=%2F&mode=0644&mkdir=true" \
+bundle_size="$(wc -c <"$BUNDLE" | tr -d ' ')"
+echo "==> Uploading $bundle_size bytes to $AGENT_DIR/agent.mjs"
+written="$(api PUT "/fs/write?path=$(urlencode "$AGENT_DIR/agent.mjs.new")&workingDir=%2F&mode=0644&mkdir=true" \
   -H "Content-Type: application/octet-stream" \
-  --data-binary "@$BUNDLE" | jq -c .
+  --data-binary "@$BUNDLE")"
+printf '%s\n' "$written" | jq -c .
+written_size="$(printf '%s' "$written" | jq -r '.size')"
+if [ "$written_size" != "$bundle_size" ]; then
+  echo "deploy-agent: the Sprite wrote $written_size bytes, expected $bundle_size" >&2
+  exit 1
+fi
 # Swap in the new file in one step, so a restart never sees a half-written bundle.
 api POST "/fs/rename" -H "Content-Type: application/json" \
   --data "$(jq -n --arg s "$AGENT_DIR/agent.mjs.new" --arg d "$AGENT_DIR/agent.mjs" \
-    '{source: $s, dest: $d, workingDir: "/"}')" | jq -c .
+    '{source: $s, dest: $d, workingDir: "/", asRoot: false}')" | jq -c .
 
 echo "==> Defining service $SERVICE_NAME"
 service="$(jq -n \

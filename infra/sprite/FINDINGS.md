@@ -141,3 +141,48 @@ inside the Sprite with no auth header.
 - Verified the replace path (runs 45758003998, 45758145962): 409 → `DELETE` 204 → `PUT` 200,
   and that `PUT` itself starts the new service (NDJSON `started`); the following `start` is a
   no-op. `/healthz` 200 after each. The service now runs `/.sprite/bin/node`, pid 3360.
+
+## Slow wake: Sprite unreachable for about 4 minutes (26 November 2026)
+
+**Conclusion:** the Sprite did not get stuck. It took about 4 minutes to wake from cold, then
+recovered by itself with the same process (pid 3360). Nobody had to act on the Sprite. Re-running
+the failed deploy job then worked.
+
+Timeline (UTC), measured:
+
+| Time | Event | Source |
+|---|---|---|
+| 04:54:52 | Agent service started, pid 3360 | sprite-ops run 45758145962 |
+| 05:00:46 | REST status `cold`; bundle upload (`PUT fs/write`) starts | Deploy run 45758676416 |
+| 05:01:48 | Upload returns **502** after 62 s; job fails before rename/define/restart | same |
+| 05:02:29–05:04:52 | 4 × `GET /healthz` on the public URL, each timed out at 30 s (HTTP 000) | lead session |
+| 05:05:08–05:05:33 | `GET /healthz` → **200 after 24.6 s** | this session |
+| 05:05:35 | `GET /healthz` × 3 → 200 in 0.17–0.19 s | this session |
+| 05:05:51 | REST status `warm`; service running, **pid 3360 unchanged**; exec works; no partial `agent.mjs.new` left | sprite-ops run 45759329153 |
+| 05:06:55–05:06:58 | Deploy job re-run: upload OK, PUT 200, restart → pid 4104 | Deploy run 45758676416 attempt 2 |
+| 05:08 | `GET /healthz` → 200 in 0.40–0.48 s | this session |
+
+- status.flyio.net at 05:05: "All Systems Operational", no incidents.
+- Earlier cold wakes took 5.6 s (after 15 minutes idle). This one took about 4 minutes. I don't
+  know why; inferred causes are host-side (restore from checkpoint, placement). Not verified.
+- The wake kept the process: same pid before and after, so in-memory state survived.
+
+Recovery steps:
+
+1. Wait. Probe `GET <sprite-url>/healthz` with a timeout of 60 s or more, every 30 s.
+2. When it answers, run sprite-ops `check`: status `warm`, service `running`, exec works.
+3. Re-run the failed deploy job (`rerun_failed_jobs` on the Deploy run).
+4. Do not destroy or recreate the Sprite for a slow wake.
+
+Changes:
+
+- `deploy-agent.sh` now wakes the Sprite with `POST /exec?cmd=true` (60 s timeout, up to 12 tries
+  15 s apart, about 15 minutes in all) before it uploads. This is not yet tested against a slow
+  wake: I couldn't reproduce one.
+
+For the demo:
+
+- Warm the Sprite a few minutes before: `curl -m 300 <sprite-url>/healthz`.
+- The app's wake ping has a 15 s timeout. A 4-minute wake means the first pings fail, and the
+  dispatcher retries with backoff (inferred from `apps/server/src/dispatcher.ts`; not tested
+  against a slow wake). Players would wait for the first reply.

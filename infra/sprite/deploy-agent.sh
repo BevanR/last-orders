@@ -5,7 +5,7 @@
 #   3. creates or updates the Sprite service that runs it, with the agent's environment;
 #   4. restarts the service and fails if the process exits during the start window.
 #
-# STATUS: upload verified against the live Sprites API on 25 November 2026; later steps untested. Endpoints follow
+# STATUS: all steps verified against the live Sprites API on 26 November 2026 (Sprite ops run 45753317907). Endpoints follow
 # https://api.sprites.dev/openapi.json as read on 25 November 2026.
 #
 # Auth: SPRITES_TOKEN is sent as a bearer token. When it is unset, no Authorization header is
@@ -126,7 +126,9 @@ service="$(jq -n \
       ANTHROPIC_BASE_URL: $base_url
     }
   }')"
-api PUT "/services/$SERVICE_NAME" -H "Content-Type: application/json" --data "$service" | jq -c '{name, cmd, args, http_port}'
+# The response is NDJSON progress events (measured 26 November 2026), not the service object.
+api PUT "/services/$SERVICE_NAME" -H "Content-Type: application/json" --data "$service" | jq -c . | tail -5
+api GET "/services/$SERVICE_NAME" | jq -c '{name, cmd, args, http_port, state}'
 
 echo "==> Restarting $SERVICE_NAME"
 # The response is NDJSON progress for the stop and the start, then a watch of the first seconds
@@ -142,7 +144,7 @@ if [ -n "$failure" ]; then
   exit 1
 fi
 
-echo "==> Service endpoint"
-api GET "" | jq -r --arg s "$SERVICE_NAME" '
-  .services[$s] // {} | "public_url: \(.public_url // "unknown"), exposure: \(.exposure // "unknown")"'
-echo "Set the app's AGENT_WAKE_URL (fly.toml [env]) to <the URL that reaches port $AGENT_PORT>/wake."
+echo "==> Sprite URL"
+# The Sprite URL routes to the service's http_port. The app needs url_settings.auth = public to
+# reach POST /wake (see ops.sh public). AGENT_WAKE_URL in fly.toml is <url>/wake.
+api GET "" | jq -r '"url: \(.url), url auth: \(.url_settings.auth // "unknown")"'

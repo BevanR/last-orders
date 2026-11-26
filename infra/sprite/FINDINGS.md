@@ -186,3 +186,25 @@ For the demo:
 - The app's wake ping has a 15 s timeout. A 4-minute wake means the first pings fail, and the
   dispatcher retries with backoff (inferred from `apps/server/src/dispatcher.ts`; not tested
   against a slow wake). Players would wait for the first reply.
+
+## Claims hang after a Sprite suspend (26 November 2026)
+
+**Conclusion:** the agent's claims never reached the app. A long-lived process reused a
+keep-alive connection that went dead across a Sprite suspend/resume, so every claim hung until
+its 15 s timeout. Fixed in `apps/agent/src/worker.ts`: a dedicated undici dispatcher with a 2 s
+keep-alive, and one retry on a fresh connection after a timeout or network error.
+
+Evidence (measured; sprite-ops `logs` and `probe` tasks, runs 45761992354, 45762465608):
+- Agent log: `claim failed: The operation was aborted due to timeout` on every claim from
+  05:09:50 to 05:30:18 UTC (pid 4104, started 05:06:58).
+- Fly app log (buffer 05:24:55–05:29:01): no `/internal/agent` requests, while the agent
+  claimed at 05:26:58, 05:27:07 and 05:28:25.
+- From the Sprite, curl and a fresh `node` `fetch` reach `/internal/agent/jobs/claim` (401
+  without auth) in 0.2–1 s. Sprite network policy: no rules.
+- pid 4104 held one ESTABLISHED socket to `2a09:8280:1::99:d7b3:0`; the app resolves to
+  `2a09:8280:1::222:728b:0`. Which host the stuck socket points to is not verified.
+
+Ruled out: a broken job blocking the queue (a failing context build would be a fast, logged
+500) and a secret mismatch (that would be a fast 401).
+
+Recovery without the fix: restart the agent service (any agent deploy does).

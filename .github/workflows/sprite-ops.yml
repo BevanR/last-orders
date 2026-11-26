@@ -10,7 +10,7 @@ on:
         type: choice
         required: true
         default: check
-        options: [check, setup, connector-proof, secret, deploy-agent, public, measure, all]
+        options: [check, logs, probe, setup, connector-proof, secret, deploy-agent, public, measure, all]
       force_secret:
         description: Rotate AGENT_SHARED_SECRET even when it already exists (secret task)
         type: boolean
@@ -19,6 +19,10 @@ on:
         description: Override the Node path for the agent service (deploy-agent task)
         type: string
         default: ''
+      logs_since:
+        description: Fly log lines from this UTC time on, HH:MM (logs task)
+        type: string
+        default: '04:45'
       idle_seconds:
         description: Idle time before the cold request (measure task)
         type: string
@@ -41,6 +45,7 @@ jobs:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       FORCE_SECRET: ${{ inputs.force_secret && '1' || '' }}
       IDLE_SECONDS: ${{ inputs.idle_seconds }}
+      LOGS_SINCE: ${{ inputs.logs_since }}
       NODE_BIN_OVERRIDE: ${{ inputs.node_bin }}
     steps:
       - uses: actions/checkout@v7
@@ -55,7 +60,7 @@ jobs:
         run: npm ci
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
-        if: inputs.task == 'secret' || inputs.task == 'all'
+        if: inputs.task == 'secret' || inputs.task == 'logs' || inputs.task == 'all'
 
       - name: ops.sh ${{ inputs.task }}
         run: bash infra/sprite/ops.sh "${{ inputs.task }}"

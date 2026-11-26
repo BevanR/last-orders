@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { type Dispatcher, fetch as undiciFetch } from 'undici';
+import { createShortKeepAliveDispatcher } from '../http.js';
 import type { CommentaryContext, GmContext, SuspectContext, TokenUsage } from '@last-orders/engine';
 import type { SuspectPrompt, TextPrompt } from '../prompt.js';
 import type { GmChoice, ModelAdapter, ModelReply } from './types.js';
@@ -13,8 +15,13 @@ export interface AnthropicAdapterOptions {
    */
   apiKey?: string;
   maxTokens?: number;
-  /** Test hook: replaces the SDK's HTTP transport. */
+  /** Test hook: replaces the HTTP transport (undici's fetch). It receives `init.dispatcher`. */
   fetch?: typeof fetch;
+  /** Per-attempt request timeout in ms, up to the response headers (default 30 s). */
+  timeoutMs?: number;
+  /** Creates the connection pool for model calls (default: short keep-alive undici Agent). */
+  createDispatcher?: () => Dispatcher;
+  log?: (msg: string) => void;
 }
 
 /** Suspect replies, game-master choices and reveal commentary from Claude through the official SDK. */
@@ -23,19 +30,49 @@ export class AnthropicAdapter implements ModelAdapter {
   private readonly client: Anthropic;
   private readonly model: string;
   private readonly maxTokens: number;
+  private readonly createDispatcher: () => Dispatcher;
+  private readonly log: (msg: string) => void;
+  private dispatcher: Dispatcher;
 
   constructor(opts: AnthropicAdapterOptions) {
     this.model = opts.model;
     this.maxTokens = opts.maxTokens ?? 400;
+    this.createDispatcher = opts.createDispatcher ?? createShortKeepAliveDispatcher;
+    this.log = opts.log ?? (() => {});
+    this.dispatcher = this.createDispatcher();
+    // undici's own fetch, so the dispatcher comes from the same undici version as the fetch.
+    const baseFetch = opts.fetch ?? (undiciFetch as unknown as typeof fetch);
     this.client = new Anthropic({
       ...(opts.baseURL ? { baseURL: opts.baseURL } : {}),
       ...(opts.apiKey
         ? { apiKey: opts.apiKey }
         : { apiKey: 'unused-behind-gateway', defaultHeaders: { 'x-api-key': null, authorization: null } }),
-      ...(opts.fetch ? { fetch: opts.fetch } : {}),
-      maxRetries: 2,
-      timeout: 30_000,
+      // Every request goes through the current pool; reset after a network failure.
+      fetch: (url, init) => baseFetch(url, { ...init, dispatcher: this.dispatcher } as unknown as RequestInit),
+      // No SDK retries: they would also retry HTTP 408/409/429/5xx (and anything the server
+      // marks x-should-retry), and a model call must never be paid for twice. create() does
+      // the single network-error retry itself.
+      maxRetries: 0,
+      timeout: opts.timeoutMs ?? 30_000,
     });
+  }
+
+  /**
+   * messages.create with one retry, on a fresh connection pool, when the request failed at the
+   * network level or timed out (APIConnectionError, which includes APIConnectionTimeoutError).
+   * HTTP error responses (any status) are never retried.
+   */
+  private async create(params: Anthropic.MessageCreateParamsNonStreaming): Promise<Anthropic.Message> {
+    try {
+      return await this.client.messages.create(params);
+    } catch (err) {
+      if (!(err instanceof Anthropic.APIConnectionError)) throw err;
+      this.log(`model request failed (${err.message}); retrying on a fresh connection`);
+      const old = this.dispatcher;
+      this.dispatcher = this.createDispatcher();
+      old.destroy().catch(() => {});
+      return await this.client.messages.create(params);
+    }
   }
 
   private usageOf(res: Anthropic.Message): TokenUsage {
@@ -59,7 +96,7 @@ export class AnthropicAdapter implements ModelAdapter {
   async reply(prompt: SuspectPrompt, ctx: SuspectContext): Promise<ModelReply> {
     // No sampling parameters and no thinking setting: thinking stays adaptive, kept short by
     // low effort. Suspect replies are short, so max_tokens stays small.
-    const res = await this.client.messages.create({
+    const res = await this.create({
       model: this.model,
       max_tokens: this.maxTokens,
       system: prompt.system,
@@ -81,7 +118,7 @@ export class AnthropicAdapter implements ModelAdapter {
    */
   async chooseIntervention(prompt: TextPrompt, ctx: GmContext): Promise<GmChoice> {
     const ids = ctx.interventions.map((i) => i.id);
-    const res = await this.client.messages.create({
+    const res = await this.create({
       model: this.model,
       max_tokens: 1024,
       system: prompt.system,
@@ -121,7 +158,7 @@ export class AnthropicAdapter implements ModelAdapter {
   }
 
   async commentary(prompt: TextPrompt, _ctx: CommentaryContext): Promise<ModelReply> {
-    const res = await this.client.messages.create({
+    const res = await this.create({
       model: this.model,
       max_tokens: 1024,
       system: prompt.system,

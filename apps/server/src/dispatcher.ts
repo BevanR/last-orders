@@ -16,6 +16,11 @@ export interface DispatcherOptions {
   periodic?: () => Promise<number>;
 }
 
+/** A sleeping Sprite took 5.6 s to answer its first request (infra/sprite/FINDINGS.md). */
+const WAKE_PING_TIMEOUT_MS = 15_000;
+/** One cold wake took about 4 minutes (26 November 2026). A pre-warm ping waits that long. */
+const PREWARM_TIMEOUT_MS = 300_000;
+
 export interface TickResult {
   requeued: number;
   /** Jobs enqueued by the periodic game upkeep. */
@@ -26,14 +31,16 @@ export interface TickResult {
 
 /**
  * Keeps jobs moving. Each tick runs the periodic game upkeep, returns expired leases to the
- * queue and, while pending jobs exist, pings the agent's wake URL. Repeated pings back off exponentially until the queue
- * empties; new work (`kick`) pings at once.
+ * queue and, while pending jobs exist, pings the agent's wake URL. Repeated pings back off
+ * exponentially until the queue empties; new work (`kick`) pings at once. `prewarm` pings once
+ * with no work queued, so a sleeping agent is awake before the first job arrives.
  */
 export class Dispatcher {
   private timer: NodeJS.Timeout | null = null;
   private running: Promise<TickResult> | null = null;
   private rerun = false;
   private nextPingAt = 0;
+  private warming: Promise<boolean> | null = null;
   private backoffMs: number;
   private readonly minBackoffMs: number;
   private readonly maxBackoffMs: number;
@@ -72,6 +79,24 @@ export class Dispatcher {
     this.nextPingAt = 0;
     this.backoffMs = this.minBackoffMs;
     void this.tick().catch((e: Error) => this.log(`tick failed: ${e.message}`));
+  }
+
+  /**
+   * Wake the agent ahead of work, for example when a room is created. Fire-and-forget: it never
+   * throws or blocks the caller. At most one pre-warm ping is in flight per process. Does nothing
+   * when no wake URL is set.
+   */
+  prewarm(): void {
+    if (!this.opts.wakeUrl || this.warming) return;
+    const started = this.now();
+    this.warming = this.ping(PREWARM_TIMEOUT_MS)
+      .then((ok) => {
+        if (ok) this.log(`pre-warm ping answered in ${this.now() - started} ms`);
+        return ok;
+      })
+      .finally(() => {
+        this.warming = null;
+      });
   }
 
   /** One dispatcher pass. Concurrent calls coalesce into one extra pass. */
@@ -117,18 +142,17 @@ export class Dispatcher {
       return { requeued, enqueued, pending, pinged: false };
     }
     if (!this.opts.wakeUrl || this.now() < this.nextPingAt) return { requeued, enqueued, pending, pinged: false };
-    const ok = await this.ping();
+    const ok = await this.ping(WAKE_PING_TIMEOUT_MS);
     this.nextPingAt = this.now() + this.backoffMs;
     this.backoffMs = Math.min(this.backoffMs * 2, this.maxBackoffMs);
     return { requeued, enqueued, pending, pinged: ok };
   }
 
-  private async ping(): Promise<boolean> {
+  private async ping(timeoutMs: number): Promise<boolean> {
     try {
       const res = await this.fetchImpl(this.opts.wakeUrl, {
         method: 'POST',
-        // A sleeping Sprite took 5.6 s to answer its first request (infra/sprite/FINDINGS.md).
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       return res.ok;
     } catch (err) {

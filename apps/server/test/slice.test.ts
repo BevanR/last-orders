@@ -383,6 +383,47 @@ describe('dispatcher', () => {
     expect(pings).toHaveLength(3);
   });
 
+  it('pre-warms the agent once when a room is created and again when the game starts', async () => {
+    const pings: { url: string; method?: string }[] = [];
+    let answer = () => {};
+    const fakeFetch = ((url: string | URL | Request, init?: RequestInit) => {
+      pings.push({ url: String(url), method: init?.method });
+      // Hold the reply, as a sleeping Sprite would, until the test answers it.
+      return new Promise<Response>((resolve) => {
+        answer = () => resolve(new Response(null, { status: 202 }));
+      });
+    }) as typeof fetch;
+    await srv.close();
+    srv = await startServer({ agentWakeUrl: 'http://agent.test/wake' }, { fetch: fakeFetch });
+
+    const { host } = await createRoom(srv.baseUrl, 'Alice');
+    expect(pings).toEqual([{ url: 'http://agent.test/wake', method: 'POST' }]);
+    // No job exists yet, so the dispatcher has nothing to wake the agent for.
+    expect(await count('SELECT count(*) AS n FROM jobs')).toBe(0);
+
+    // A second room while the first ping is still waiting does not start another.
+    await createRoom(srv.baseUrl, 'Carol');
+    expect(pings).toHaveLength(1);
+
+    answer();
+    await sleep(10);
+    expect((await host.req('POST', host.room('/start'))).status).toBe(200);
+    expect(pings).toHaveLength(2);
+    answer();
+  });
+
+  it('does not pre-warm when the wake URL is empty', async () => {
+    const pings: string[] = [];
+    const fakeFetch = (async (url: string | URL | Request) => {
+      pings.push(String(url));
+      return new Response(null, { status: 202 });
+    }) as typeof fetch;
+    await srv.close();
+    srv = await startServer({ agentWakeUrl: '' }, { fetch: fakeFetch });
+    await startedGame(srv.baseUrl);
+    expect(pings).toEqual([]);
+  });
+
   it('wakes a real agent endpoint when a player acts', async () => {
     const { createServer } = await import('node:http');
     let woken = 0;

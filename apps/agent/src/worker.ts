@@ -1,6 +1,7 @@
-import { Agent, type Dispatcher, fetch as undiciFetch } from 'undici';
+import { type Dispatcher, fetch as undiciFetch } from 'undici';
 import type { ClaimedJob, CompleteJobRequest, CompleteJobResponse, FailJobRequest } from '@last-orders/engine';
 import type { ModelAdapter } from './adapters/types.js';
+import { createShortKeepAliveDispatcher } from './http.js';
 import { buildCommentaryPrompt, buildGmPrompt, buildSuspectPrompt } from './prompt.js';
 
 export class AppApiError extends Error {
@@ -21,13 +22,9 @@ export interface AppClientOptions {
   log?: (msg: string) => void;
 }
 
-/**
- * Connection pool for app calls. Keep-alive is short so an idle socket is not reused after the
- * Sprite is suspended and resumed (or the app is redeployed): such a socket looks ESTABLISHED
- * locally but is dead, and a request written to it hangs until the timeout.
- */
+/** Connection pool for app calls: see {@link createShortKeepAliveDispatcher}. */
 export function createAppDispatcher(): Dispatcher {
-  return new Agent({ keepAliveTimeout: 2_000, keepAliveMaxTimeout: 4_000, connect: { timeout: 5_000 } });
+  return createShortKeepAliveDispatcher();
 }
 
 /** Client for the app's internal agent API. */

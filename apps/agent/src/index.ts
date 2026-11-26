@@ -5,3 +5,4 @@ export * from './prompt.js';
 export * from './worker.js';
 export * from './wake.js';
 export * from './config.js';
+export * from './http.js';

@@ -15,6 +15,7 @@ const adapter: ModelAdapter =
         model: config.model,
         baseURL: config.anthropicBaseUrl,
         apiKey: config.anthropicApiKey,
+        log,
       })
     : simulated;
 

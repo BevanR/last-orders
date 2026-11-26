@@ -127,7 +127,8 @@ export class Dispatcher {
     try {
       const res = await this.fetchImpl(this.opts.wakeUrl, {
         method: 'POST',
-        signal: AbortSignal.timeout(5_000),
+        // A sleeping Sprite took 5.6 s to answer its first request (infra/sprite/FINDINGS.md).
+        signal: AbortSignal.timeout(15_000),
       });
       return res.ok;
     } catch (err) {

@@ -44,9 +44,17 @@ api() {
 urlencode() { jq -rn --arg v "$1" '$v | @uri'; }
 
 # sprite_sh SCRIPT: runs SCRIPT with bash on the Sprite (POST /exec, script on stdin).
-# Prints the raw response body (the command's output).
+# The response body is framed: each output chunk starts with a stream byte (0x01 stdout,
+# 0x02 stderr) and the body ends with 0x03 followed by the exit code as one byte. This prints
+# the output without the framing and returns the remote exit code.
 sprite_sh() {
-  api POST "/exec?cmd=bash&cmd=-s&stdin=true" -H "Content-Type: application/octet-stream" --data-binary "$1"
+  local raw code
+  raw="$(mktemp)"
+  api POST "/exec?cmd=bash&cmd=-s&stdin=true" -H "Content-Type: application/octet-stream" --data-binary "$1" >"$raw"
+  code="$(perl -0777 -ne 'print /\x03(.)\z/s ? ord($1) : 0' "$raw")"
+  perl -0777 -pe 's/\x03.\z//s; s/[\x01\x02]//g' "$raw"
+  rm -f "$raw"
+  return "$code"
 }
 
 task_check() {
@@ -164,7 +172,7 @@ task_secret() {
 
 task_deploy_agent() {
   local node_bin
-  node_bin="$(sprite_sh 'if [ -x "$HOME/.local/node/bin/node" ]; then echo "$HOME/.local/node/bin/node"; else command -v node; fi' | tr -d '\r' | tail -1)"
+  node_bin="$(sprite_sh 'if [ -x "$HOME/.local/node/bin/node" ]; then echo "$HOME/.local/node/bin/node"; else command -v node; fi' | tail -1)"
   echo "NODE_BIN on the Sprite: $node_bin"
   NODE_BIN="$node_bin" bash "$(dirname "${BASH_SOURCE[0]}")/deploy-agent.sh"
 }
@@ -181,28 +189,30 @@ timing() {
 }
 
 task_measure() {
-  local url status waited=0 max="${COLD_WAIT_MAX:-1500}"
+  # GET /v1/sprites/{name} .status is not a wake signal: on 26 November 2026 it read "cold" while
+  # the service answered in 0.2s with an unchanged pid. So this idles for IDLE_SECONDS with no
+  # traffic to the Sprite URL (polling only the REST status, which does not wake it), then times
+  # the first request and compares the service's pid and started_at before and after.
+  local url idle="${IDLE_SECONDS:-900}" before after waited=0
   url="$(api GET "" | jq -r '.url')"
   log "Warm: GET $url/healthz x5"
   for _ in 1 2 3 4 5; do timing "$url/healthz"; sleep 1; done
-  log "Waiting for the Sprite to go cold (status poll every 15s, max ${max}s; GET /v1/sprites/{name} only)"
-  while :; do
-    status="$(api GET "" | jq -r '.status')"
-    echo "  t=${waited}s status=$status"
-    [ "$status" != "running" ] && break
-    [ "$waited" -ge "$max" ] && { echo "  still running after ${max}s"; break; }
-    sleep 15; waited=$((waited + 15))
+  before="$(api GET "/services/$SERVICE_NAME" | jq -c '.state | {status, pid, started_at}')"
+  echo "service before idle: $before"
+  log "Idle ${idle}s with no requests to the Sprite URL (REST status every 60s)"
+  while [ "$waited" -lt "$idle" ]; do
+    sleep 60; waited=$((waited + 60))
+    echo "  t=${waited}s sprite status=$(api GET "" | jq -r '.status')"
   done
-  echo "Cold wait: ${waited}s, status: $status"
-  log "Cold: first GET $url/healthz"
+  log "After ${idle}s idle: first GET $url/healthz"
   timing "$url/healthz"
-  log "Warm again x3"
+  log "Then x3"
   for _ in 1 2 3; do timing "$url/healthz"; sleep 1; done
+  after="$(api GET "/services/$SERVICE_NAME" | jq -c '.state | {status, pid, started_at}')"
+  echo "service after idle: $after"
+  [ "$before" = "$after" ] && echo "same process (no restart)" || echo "service state changed"
   log "POST /wake (no data)"
   curl -sS -X POST -w ' HTTP %{http_code} total %{time_total}s\n' "$url/wake" || true
-  log "Service after cold wake"
-  api GET "/services/$SERVICE_NAME" | jq -c '.' | head -c 2000
-  echo
 }
 
 case "${1:-}" in

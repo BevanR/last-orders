@@ -117,7 +117,7 @@ jobs:
         run: |
           docker run -d --name app --network host \
             -e DATABASE_URL=postgres://postgres:postgres@localhost:5432/last_orders \
-            -e CASE_FILE=/app/packages/engine/test/fixtures/fixture.case.json \
+            -e CASE_FILE=/app/case/last-orders.case.json \
             last-orders:ci
           for i in $(seq 1 30); do
             if curl -fsS http://localhost:8080/healthz; then echo; exit 0; fi

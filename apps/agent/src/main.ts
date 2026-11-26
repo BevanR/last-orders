@@ -19,7 +19,7 @@ const adapter: ModelAdapter =
     : simulated;
 
 const worker = new Worker({
-  client: new AppClient(config.appUrl, config.sharedSecret),
+  client: new AppClient(config.appUrl, config.sharedSecret, undefined, { log }),
   adapter,
   fallback: simulated,
   log,

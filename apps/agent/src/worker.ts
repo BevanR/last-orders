@@ -1,3 +1,4 @@
+import { Agent, type Dispatcher, fetch as undiciFetch } from 'undici';
 import type { ClaimedJob, CompleteJobRequest, CompleteJobResponse, FailJobRequest } from '@last-orders/engine';
 import type { ModelAdapter } from './adapters/types.js';
 import { buildCommentaryPrompt, buildGmPrompt, buildSuspectPrompt } from './prompt.js';
@@ -12,25 +13,76 @@ export class AppApiError extends Error {
   }
 }
 
+export interface AppClientOptions {
+  /** Per-attempt request timeout in ms (default 10 s). */
+  timeoutMs?: number;
+  /** Creates the connection pool used for app calls (default: short keep-alive undici Agent). */
+  createDispatcher?: () => Dispatcher;
+  log?: (msg: string) => void;
+}
+
+/**
+ * Connection pool for app calls. Keep-alive is short so an idle socket is not reused after the
+ * Sprite is suspended and resumed (or the app is redeployed): such a socket looks ESTABLISHED
+ * locally but is dead, and a request written to it hangs until the timeout.
+ */
+export function createAppDispatcher(): Dispatcher {
+  return new Agent({ keepAliveTimeout: 2_000, keepAliveMaxTimeout: 4_000, connect: { timeout: 5_000 } });
+}
+
 /** Client for the app's internal agent API. */
 export class AppClient {
   private readonly fetchImpl: typeof fetch;
+  private readonly timeoutMs: number;
+  private readonly createDispatcher: () => Dispatcher;
+  private readonly log: (msg: string) => void;
+  private dispatcher: Dispatcher;
 
   constructor(
     private readonly baseUrl: string,
     private readonly secret: string,
     fetchImpl?: typeof fetch,
+    opts: AppClientOptions = {},
   ) {
-    this.fetchImpl = fetchImpl ?? fetch;
+    // undici's own fetch, so the dispatcher comes from the same undici version as the fetch.
+    this.fetchImpl = fetchImpl ?? (undiciFetch as unknown as typeof fetch);
+    this.timeoutMs = opts.timeoutMs ?? 10_000;
+    this.createDispatcher = opts.createDispatcher ?? createAppDispatcher;
+    this.log = opts.log ?? (() => {});
+    this.dispatcher = this.createDispatcher();
+  }
+
+  /** Drop the current pool (and any dead sockets in it) and start a fresh one. */
+  private resetDispatcher(): void {
+    const old = this.dispatcher;
+    this.dispatcher = this.createDispatcher();
+    old.destroy().catch(() => {});
+  }
+
+  private send(url: URL, body: string): Promise<Response> {
+    const init = {
+      method: 'POST',
+      headers: { authorization: `Bearer ${this.secret}`, 'content-type': 'application/json' },
+      body,
+      signal: AbortSignal.timeout(this.timeoutMs),
+      dispatcher: this.dispatcher,
+    };
+    return this.fetchImpl(url, init as unknown as RequestInit);
   }
 
   private async post<T>(path: string, body: unknown): Promise<{ status: number; data: T | null }> {
-    const res = await this.fetchImpl(new URL(path, this.baseUrl), {
-      method: 'POST',
-      headers: { authorization: `Bearer ${this.secret}`, 'content-type': 'application/json' },
-      body: JSON.stringify(body ?? {}),
-      signal: AbortSignal.timeout(15_000),
-    });
+    const url = new URL(path, this.baseUrl);
+    const payload = JSON.stringify(body ?? {});
+    let res: Response;
+    try {
+      res = await this.send(url, payload);
+    } catch (err) {
+      // Timeout or network error (never an HTTP error response): the pooled connection may be
+      // dead, so retry once on a fresh pool.
+      this.log(`app request ${path} failed (${(err as Error).message}); retrying on a fresh connection`);
+      this.resetDispatcher();
+      res = await this.send(url, payload);
+    }
     if (res.status === 204) return { status: 204, data: null };
     const data = (await res.json().catch(() => null)) as (T & { error?: string }) | null;
     if (!res.ok) throw new AppApiError(res.status, data?.error ?? 'unknown');

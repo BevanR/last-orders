@@ -138,7 +138,7 @@ Pushes to `main` deploy after CI passes. Nothing deploys from other branches.
 | Piece | Where | How |
 |---|---|---|
 | App + web client | Fly App `last-orders`, region `syd`, one `shared-cpu-1x` 512 MB machine | `.github/workflows/deploy.yml` runs `flyctl deploy --remote-only --ha=false`. The `Dockerfile` builds engine, server and web; migrations run when the server starts. Config is in `fly.toml`. |
-| Agent | Sprite `last-orders-gm` | The same workflow runs `infra/sprite/deploy-agent.sh`: it bundles the agent into one file (`npm run bundle -w @last-orders/agent` → `apps/agent/dist/agent.mjs`), uploads it, and restarts the Sprite service `last-orders-agent`. Untested against the live Sprites API. |
+| Agent | Sprite `last-orders-gm` | The same workflow runs `infra/sprite/deploy-agent.sh`: it bundles the agent into one file (`npm run bundle -w @last-orders/agent` → `apps/agent/dist/agent.mjs`), uploads it, and restarts the Sprite service `last-orders-agent`. Verified against the live Sprite on 26 November 2026. Manual Sprite tasks: `.github/workflows/sprite-ops.yml` (see `infra/sprite/FINDINGS.md`). |
 
 `.github/workflows/ci.yml` runs on every push and pull request: typecheck, build, unit and
 integration tests against a Postgres 16 service, the agent bundle, the Playwright end-to-end
@@ -154,9 +154,9 @@ Repository secrets. Each deploy job skips with a notice when its secret is missi
 Repository variables `AGENT_MODEL` and `AGENT_MODEL_ADAPTER` override the agent's model
 (defaults `claude-sonnet-5-5` and `anthropic`).
 
-Runtime settings that are not secrets live in `fly.toml` `[env]`. One needs a value later:
+Runtime settings that are not secrets live in `fly.toml` `[env]`:
 
-- `AGENT_WAKE_URL` is empty until the Sprite's URL is known. While it is empty the server queues
+- `AGENT_WAKE_URL` is `https://last-orders-gm-bu5ng.sprites.app/wake`. While it is empty the server queues
   jobs but never wakes the agent. Set it to `<Sprite service URL>/wake` and deploy again. The URL
   must answer `POST /wake` without Sprite URL authentication.
 

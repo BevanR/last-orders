@@ -28,7 +28,7 @@ least one connector." Submission needs a public code link, a demo, and a short d
 |---|---|---|
 | Fly App | `last-orders` | created 25 November 2026 via Machines API, no machines yet |
 | MPG cluster | `last-orders-db` | id `1zqyxr7jz8erwp8m`, region `syd`, plan `dev-256`, Postgres 16, attached to `last-orders`. Database `last_orders`, user `last_orders_app` (role `schema_admin`). App secret `DATABASE_URL` set (direct endpoint, `sslmode=require`). |
-| Sprite | `last-orders-gm` | not yet created |
+| Sprite | `last-orders-gm` | id `sprite-9367a60b-895a-4f53-9ea6-f273e15dea10`, URL https://last-orders-gm-bu5ng.sprites.app (URL auth **public**). Service `last-orders-agent` (`/.sprite/bin/node` v24, port 8080) deployed 26 November 2026. See `infra/sprite/FINDINGS.md`. |
 | Anthropic connector | "Anthropic API Access" | connection id `yscja5o0A-6UPqpa3IFdig`; access policy: Sprites with name prefix `last-orders-` only |
 
 Connector call from inside a Sprite (no auth header; the gateway identifies the Sprite):
@@ -42,25 +42,30 @@ Only the Messages API (plus token counting, batches) and `/v1/models` are forwar
 
 ## Access in cloud agent sessions
 
-- `api.sprites.dev`: a network secret injects `Authorization: Bearer <Sprites token>` for
-  org `bevan-rudge`. Sessions started after 25 November 2026 ~10:45 UTC have it.
+- `api.sprites.dev`: a network secret is meant to inject `Authorization: Bearer <Sprites token>`
+  for org `bevan-rudge`. On 26 November 2026 it still returned 401 (`X-Proxy-Error: upstream
+  auth failed`). Use the **Sprite ops** workflow instead (below).
+- **Sprite ops** (`.github/workflows/sprite-ops.yml`, `infra/sprite/ops.sh`): manual
+  `workflow_dispatch` with repo secrets `SPRITES_TOKEN` and `FLY_API_TOKEN`. Tasks: check, setup,
+  connector-proof, secret, deploy-agent, public, measure, all. Agents trigger it with the GitHub
+  MCP `actions_run_trigger` (any branch as `ref`) and read output with `get_job_logs`.
 - Fly Machines API / MPG API: `FLY_PERSONAL_ORG_TOKEN` env var, org `bevan-rudge`. Never print it.
 - `flyctl` is not installable in the default cloud egress policy. Deploys go through GitHub
   Actions (`superfly/flyctl-actions`) with a `FLY_API_TOKEN` repo secret that Bevan adds.
 - Fly MCP tools failed to load in the first session; do not depend on them.
-- `AGENT_SHARED_SECRET` is not set yet. The first session that has both Sprites access and
-  `FLY_PERSONAL_ORG_TOKEN` should generate it, set it as a Fly app secret (Machines API
-  `POST /v1/apps/last-orders/secrets/AGENT_SHARED_SECRET`) and write it to the Sprite, without
-  printing it.
+- `AGENT_SHARED_SECRET` is set (26 November 2026, Sprite ops `secret` task): staged on Fly app
+  `last-orders` (digest `24a709392d015195`) and written to the Sprite at
+  `/home/sprite/.config/last-orders/agent-shared-secret` (mode 600, 64 bytes). Staged secrets
+  reach the running machine on the next `flyctl deploy`. Rotate with the `secret` task and
+  `force_secret: true`.
 - Deploys (branch `deploy`, see README "Deploy"): pushes to `main` deploy the app with
   `flyctl deploy` from GitHub Actions, then upload the agent to the Sprite with
   `infra/sprite/deploy-agent.sh`. Repo secrets needed: `FLY_API_TOKEN` (Bevan) and
   `SPRITES_TOKEN`. Without them the jobs skip with a notice.
 - The agent runs on the Sprite as service `last-orders-agent`: `node
   /home/sprite/last-orders/agent.mjs`, wake server on port 8080. It reads the shared secret from
-  `/home/sprite/.config/last-orders/agent-shared-secret` (`AGENT_SHARED_SECRET_FILE`). The
-  Sprite session should write the secret there, or change `AGENT_SECRET_FILE` in the script.
-- `AGENT_WAKE_URL` is a plain env value in `fly.toml`, empty until the Sprite URL is known.
+  `/home/sprite/.config/last-orders/agent-shared-secret` (`AGENT_SHARED_SECRET_FILE`).
+- `AGENT_WAKE_URL` in `fly.toml` is `https://last-orders-gm-bu5ng.sprites.app/wake`.
 
 ## Architecture
 
@@ -87,12 +92,15 @@ Browsers ──HTTP + SSE──> Fly App `last-orders` (web UI, game API, rules 
 1. **Case bible** — `case/bible.md`, `case/clue-graph.md`. Drafted by a writer agent, then a
    separate fairness review. Status: done (25 November 2026), revised after review.
 2. **Infra proof** — Sprite created, one real connector call, wake-by-URL verified, app
-   deployed, MPG attached. Status: app + MPG created; Sprite spike in progress.
+   deployed, MPG attached. Status: done except the end-to-end wake (26 November 2026). App live;
+   real connector calls from the Sprite (Sonnet 5.5, raw HTTP and SDK); agent service deployed and
+   answering on its public URL. Pending: the next app deploy, which loads `AGENT_SHARED_SECRET`
+   and `AGENT_WAKE_URL`, then one real game job through app → wake → Sprite → connector.
 3. **Vertical slice** — join room, interview a suspect, find evidence, present it, testimony
    changes once. Status: done (engine 17, agent 8, server 15 tests, 2-player Playwright e2e).
 4. **Full case** — shared board, acts, accusation, reveal, game-master interventions. Status: done
    (25 November 2026), simulated adapter only; see DESIGN.md "Implementation notes
-   (milestone 4)". CI/CD and the Sprite agent bundle: done, untested on GitHub and live Sprites.
+   (milestone 4)". CI/CD and the Sprite agent bundle: done; agent deploy verified on the live Sprite.
 5. **Hardening and demo** — recovery tests, adversarial dialogue evals, polish, README, demo.
 
 ## Acceptance tests (from the spec)

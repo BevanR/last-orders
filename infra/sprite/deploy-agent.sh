@@ -80,6 +80,20 @@ fi
 echo "==> Checking Sprite $SPRITE_NAME"
 api GET "" | jq -r '"status: \(.status), url: \(.url)"'
 
+# Wake the Sprite before the upload. On 26 November 2026 a cold Sprite took about 4 minutes to
+# answer (Deploy run 45758676416): the upload got 502 after 62 s and the job failed. A cheap exec
+# retried here absorbs a slow wake; it does not touch the agent.
+echo "==> Waking the Sprite (exec true, up to ${WAKE_TRIES:-12} tries)"
+woke=0
+for i in $(seq 1 "${WAKE_TRIES:-12}"); do
+  start=$(date +%s)
+  code="$(curl -sS -o /dev/null -m 60 -w '%{http_code}' -X POST "${auth[@]}" "$SPRITE_URL/exec?cmd=true" || true)"
+  echo "  try $i: HTTP $code in $(( $(date +%s) - start ))s"
+  if [ "$code" = "200" ]; then woke=1; break; fi
+  sleep 15
+done
+[ "$woke" = 1 ] || { echo "deploy-agent: the Sprite did not wake; see infra/sprite/FINDINGS.md 'Slow wake'" >&2; exit 1; }
+
 # Query-string encoding for the fs endpoints.
 urlencode() { jq -rn --arg v "$1" '$v | @uri'; }
 

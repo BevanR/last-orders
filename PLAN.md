@@ -115,3 +115,28 @@ Browsers ──HTTP + SSE──> Fly App `last-orders` (web UI, game API, rules 
 - The lead session merges branches into `main`.
 - Open risk: the Anthropic SDK sends `anthropic-version: 2026-10-21`; untested whether the
   Sprites gateway passes it through. The Sprite spike should check.
+
+## Status at 26 November 2026, 04:20 UTC (lead session handoff)
+
+| Item | State |
+|---|---|
+| Fly App | Live at https://last-orders.fly.dev. `/healthz` returns `{"ok":true,"db":"up"}` (MPG over TLS works). Deploys via `.github/workflows/deploy.yml` after CI on `main`, or manual dispatch. |
+| GitHub secrets | `FLY_API_TOKEN` (deploy token, app `last-orders`) and `SPRITES_TOKEN` set. |
+| Sprite | `last-orders-gm` exists, URL https://last-orders-gm-bu5ng.sprites.app (private). Node, agent service, shared secret, public URL: in progress. |
+| Sprite ops | `.github/workflows/sprite-ops.yml` + `infra/sprite/ops.sh` on `main`. Session "Last Orders: Sprite agent setup (2)" (`session_01CFBkcXBq3HWi3QK41HqRvf`) dispatches it with `ref: infra/sprite-setup` and will open a PR. |
+| `AGENT_SHARED_SECRET` | Not yet set; the `secret` task of sprite-ops sets it (staged on Fly, written to the Sprite). |
+| `AGENT_WAKE_URL` | Empty in `fly.toml` until the Sprite service is public. |
+| Real model call | Not yet made. |
+
+Sprites API auth in cloud sessions: the `api.sprites.dev` network secret makes the proxy
+overwrite any `Authorization` header and the upstream rejects it (`X-Proxy-Error: upstream auth
+failed`). Measured 26 November 2026: even with a valid-looking `SPRITES_TOKEN` env var sent
+explicitly, the proxy's injected value wins and returns 401. Fix: delete the network secret and
+use the `SPRITES_TOKEN` env var (new sessions).
+
+Next after the Sprite PR merges: redeploy app (picks up staged secret and `AGENT_WAKE_URL`),
+real-model playtest with Bevan, fix design weak spots (desktop empty space, long phone suspect
+list, text-only map), adversarial evals on Haiku then Sonnet, README + submission text, demo script.
+
+Lead-session worktrees on this container: `/home/user/last-orders-main` (main). Branches `slice-1`,
+`m4`, `deploy`, `design` are merged and can be deleted.

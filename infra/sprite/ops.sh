@@ -238,6 +238,18 @@ task_logs() {
   fi
 }
 
+task_probe() {
+  log "From inside the Sprite: reach the app (no auth header; a claim without auth must get 401)"
+  sprite_sh 'for i in 1 2 3; do
+    curl -sS -o /dev/null -m 30 -w "GET  /healthz              HTTP %{http_code} dns %{time_namelookup}s connect %{time_connect}s tls %{time_appconnect}s total %{time_total}s ip %{remote_ip}\n" https://last-orders.fly.dev/healthz
+    curl -sS -o /dev/null -m 30 -X POST -w "POST /internal/agent/jobs/claim HTTP %{http_code} total %{time_total}s ip %{remote_ip}\n" https://last-orders.fly.dev/internal/agent/jobs/claim
+  done
+  getent hosts last-orders.fly.dev'
+  log "Sprite network policy"
+  api GET "/policy/network" | jq -c . | head -c 2000
+  echo
+}
+
 case "${1:-}" in
   check) task_check ;;
   setup) task_setup ;;
@@ -247,6 +259,7 @@ case "${1:-}" in
   public) task_public ;;
   measure) task_measure ;;
   logs) task_logs ;;
+  probe) task_probe ;;
   all) task_setup; task_secret; task_deploy_agent; task_public; task_check ;;
   *) sed -n '2,20p' "$0"; exit 2 ;;
 esac

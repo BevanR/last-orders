@@ -10,7 +10,7 @@ on:
         type: choice
         required: true
         default: check
-        options: [check, logs, setup, connector-proof, secret, deploy-agent, public, measure, all]
+        options: [check, logs, probe, setup, connector-proof, secret, deploy-agent, public, measure, all]
       force_secret:
         description: Rotate AGENT_SHARED_SECRET even when it already exists (secret task)
         type: boolean

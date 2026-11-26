@@ -174,7 +174,10 @@ task_deploy_agent() {
   local node_bin
   node_bin="$(sprite_sh 'if [ -x "$HOME/.local/node/bin/node" ]; then echo "$HOME/.local/node/bin/node"; else command -v node; fi' | tail -1)"
   echo "NODE_BIN on the Sprite: $node_bin"
+  [ -n "${NODE_BIN_OVERRIDE:-}" ] && node_bin="$NODE_BIN_OVERRIDE" && echo "NODE_BIN override: $node_bin"
   NODE_BIN="$node_bin" bash "$(dirname "${BASH_SOURCE[0]}")/deploy-agent.sh"
+  log "GET /healthz after deploy"
+  timing "$(api GET "" | jq -r '.url')/healthz"
 }
 
 task_public() {

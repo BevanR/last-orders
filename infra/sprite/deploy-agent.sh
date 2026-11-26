@@ -21,7 +21,7 @@
 #   AGENT_DIR           [/home/sprite/last-orders]       where agent.mjs goes on the Sprite
 #   AGENT_SECRET_FILE   [/home/sprite/.config/last-orders/agent-shared-secret]
 #   AGENT_PORT          [8080]                           the wake server port, routed by the Sprite URL
-#   NODE_BIN            [node]                           Node 22 or later on the Sprite
+#   NODE_BIN            [/.sprite/bin/node]              Node 22 or later on the Sprite (the image's own)
 #   AGENT_APP_URL             [https://last-orders.fly.dev]           becomes APP_URL
 #   AGENT_MODEL_ADAPTER       [anthropic]                             becomes MODEL_ADAPTER
 #   AGENT_MODEL               [claude-sonnet-5-5]                     becomes MODEL
@@ -38,7 +38,7 @@ SERVICE_NAME="${SERVICE_NAME:-last-orders-agent}"
 AGENT_DIR="${AGENT_DIR:-/home/sprite/last-orders}"
 AGENT_SECRET_FILE="${AGENT_SECRET_FILE:-/home/sprite/.config/last-orders/agent-shared-secret}"
 AGENT_PORT="${AGENT_PORT:-8080}"
-NODE_BIN="${NODE_BIN:-node}"
+NODE_BIN="${NODE_BIN:-/.sprite/bin/node}"
 AGENT_APP_URL="${AGENT_APP_URL:-https://last-orders.fly.dev}"
 AGENT_MODEL_ADAPTER="${AGENT_MODEL_ADAPTER:-anthropic}"
 AGENT_MODEL="${AGENT_MODEL:-claude-sonnet-5-5}"
@@ -126,14 +126,43 @@ service="$(jq -n \
       ANTHROPIC_BASE_URL: $base_url
     }
   }')"
-# The response is NDJSON progress events (measured 26 November 2026), not the service object.
-api PUT "/services/$SERVICE_NAME" -H "Content-Type: application/json" --data "$service" | jq -c . | tail -5
+# put_service: PUT the definition; prints the HTTP status, then the body (NDJSON progress events
+# on success, measured 26 November 2026). Never fails, so the caller can read a 409's body.
+put_service() {
+  curl -sS -X PUT "${auth[@]}" -H "Content-Type: application/json" --data "$service" \
+    -w '\n%{http_code}' "$SPRITE_URL/services/$SERVICE_NAME"
+}
+before="$(api GET "/services/$SERVICE_NAME" 2>/dev/null | jq -c '.state | {status, pid, started_at}' 2>/dev/null || echo none)"
+echo "service before: $before"
+stopped=0
+out="$(put_service)"
+code="$(printf '%s' "$out" | tail -1)"
+echo "PUT service: HTTP $code"
+printf '%s\n' "$out" | sed '$d' | tail -5
+if [ "$code" = "409" ]; then
+  # 409 body (26 November 2026): "service with that name already exists with this config, use POST
+  # /v1/services/<name>/restart to restart or replace it entirely with DELETE /v1/services/<name>
+  # then PUT". Seen when the definition changes (Deploy run 45757007653 sent cmd "node" while the
+  # service ran "/.sprite/bin/node"). Stopping first does not help; delete, then define again.
+  echo "==> Replacing $SERVICE_NAME (DELETE, then PUT)"
+  curl -sS -X DELETE "${auth[@]}" -w ' HTTP %{http_code}\n' "$SPRITE_URL/services/$SERVICE_NAME" | tail -3
+  stopped=1
+  out="$(put_service)"
+  code="$(printf '%s' "$out" | tail -1)"
+  echo "PUT service after DELETE: HTTP $code"
+  printf '%s\n' "$out" | sed '$d' | tail -5
+fi
+case "$code" in 2??) ;; *) echo "deploy-agent: defining the service failed with HTTP $code" >&2; exit 1 ;; esac
 api GET "/services/$SERVICE_NAME" | jq -c '{name, cmd, args, http_port, state}'
 
 echo "==> Restarting $SERVICE_NAME"
 # The response is NDJSON progress for the stop and the start, then a watch of the first seconds
 # of output. An exit or error event after the start means the agent did not stay up.
-events="$(api POST "/services/$SERVICE_NAME/restart")"
+if [ "$stopped" = 1 ]; then
+  events="$(api POST "/services/$SERVICE_NAME/start")"
+else
+  events="$(api POST "/services/$SERVICE_NAME/restart")"
+fi
 printf '%s\n' "$events" | jq -r 'select(.type == "stdout" or .type == "stderr") | "  [\(.type)] \(.data)"'
 failure="$(printf '%s\n' "$events" | jq -rs '
   (map(.type) | index("started")) as $start
@@ -141,6 +170,13 @@ failure="$(printf '%s\n' "$events" | jq -rs '
   | first // empty | tojson')"
 if [ -n "$failure" ]; then
   echo "deploy-agent: the service did not stay up: $failure" >&2
+  exit 1
+fi
+
+after="$(api GET "/services/$SERVICE_NAME" | jq -c '.state | {status, pid, started_at}')"
+echo "service after: $after"
+if [ "$before" = "$after" ]; then
+  echo "deploy-agent: the service was not restarted (state unchanged)" >&2
   exit 1
 fi
 

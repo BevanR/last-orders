@@ -126,3 +126,15 @@ inside the Sprite with no auth header.
   game turn to close milestone 2.
 - Rotate `AGENT_SHARED_SECRET` with the `secret` task and `force_secret: true`, then deploy the
   app.
+
+## Service redeploys (26 November 2026)
+
+| Situation | `PUT /services/{name}` | What to do |
+|---|---|---|
+| Same definition, service running or stopped | 200 `{"message":"Service already running with that command, use POST …/restart …"}`; nothing changes (the message says "running" even when stopped) | `POST …/restart` (gives a new pid; starts a stopped service) |
+| Changed definition (for example `cmd` `node` vs `/.sprite/bin/node`) | 409 `service with that name already exists with this config, use POST …/restart to restart or replace it entirely with DELETE … then PUT …` | `DELETE`, then `PUT`, then `POST …/start` |
+
+- Deploy run 45757007653 failed with that 409: `deploy.yml` sent `cmd: node`, the service ran
+  `/.sprite/bin/node`. `deploy-agent.sh` now defaults `NODE_BIN` to `/.sprite/bin/node`.
+- Stopping the service does not clear the 409; the agent was down from about 04:49:30 to
+  04:51:20 UTC while I learned that (run 45757604097).

@@ -138,3 +138,6 @@ inside the Sprite with no auth header.
   `/.sprite/bin/node`. `deploy-agent.sh` now defaults `NODE_BIN` to `/.sprite/bin/node`.
 - Stopping the service does not clear the 409; the agent was down from about 04:49:30 to
   04:51:20 UTC while I learned that (run 45757604097).
+- Verified the replace path (runs 45758003998, 45758145962): 409 → `DELETE` 204 → `PUT` 200,
+  and that `PUT` itself starts the new service (NDJSON `started`); the following `start` is a
+  no-op. `/healthz` 200 after each. The service now runs `/.sprite/bin/node`, pid 3360.

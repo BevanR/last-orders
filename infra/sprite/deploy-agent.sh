@@ -140,16 +140,16 @@ code="$(printf '%s' "$out" | tail -1)"
 echo "PUT service: HTTP $code"
 printf '%s\n' "$out" | sed '$d' | tail -5
 if [ "$code" = "409" ]; then
-  # PUT returns 409 when the service is running with a different command (Deploy run 45757007653
-  # sent cmd "node" while the service ran "/.sprite/bin/node"). With the same command it returns
-  # 200 "Service already running with that command" and changes nothing. Stop it, then define it
-  # again; the start below brings it back.
-  echo "==> Stopping $SERVICE_NAME to redefine it"
-  api POST "/services/$SERVICE_NAME/stop" | tail -3
+  # 409 body (26 November 2026): "service with that name already exists with this config, use POST
+  # /v1/services/<name>/restart to restart or replace it entirely with DELETE /v1/services/<name>
+  # then PUT". Seen when the definition changes (Deploy run 45757007653 sent cmd "node" while the
+  # service ran "/.sprite/bin/node"). Stopping first does not help; delete, then define again.
+  echo "==> Replacing $SERVICE_NAME (DELETE, then PUT)"
+  curl -sS -X DELETE "${auth[@]}" -w ' HTTP %{http_code}\n' "$SPRITE_URL/services/$SERVICE_NAME" | tail -3
   stopped=1
   out="$(put_service)"
   code="$(printf '%s' "$out" | tail -1)"
-  echo "PUT service after stop: HTTP $code"
+  echo "PUT service after DELETE: HTTP $code"
   printf '%s\n' "$out" | sed '$d' | tail -5
 fi
 case "$code" in 2??) ;; *) echo "deploy-agent: defining the service failed with HTTP $code" >&2; exit 1 ;; esac

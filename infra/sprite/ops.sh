@@ -44,9 +44,17 @@ api() {
 urlencode() { jq -rn --arg v "$1" '$v | @uri'; }
 
 # sprite_sh SCRIPT: runs SCRIPT with bash on the Sprite (POST /exec, script on stdin).
-# Prints the raw response body (the command's output).
+# The response body is framed: each output chunk starts with a stream byte (0x01 stdout,
+# 0x02 stderr) and the body ends with 0x03 followed by the exit code as one byte. This prints
+# the output without the framing and returns the remote exit code.
 sprite_sh() {
-  api POST "/exec?cmd=bash&cmd=-s&stdin=true" -H "Content-Type: application/octet-stream" --data-binary "$1"
+  local raw code
+  raw="$(mktemp)"
+  api POST "/exec?cmd=bash&cmd=-s&stdin=true" -H "Content-Type: application/octet-stream" --data-binary "$1" >"$raw"
+  code="$(perl -0777 -ne 'print /\x03(.)\z/s ? ord($1) : 0' "$raw")"
+  perl -0777 -pe 's/\x03.\z//s; s/[\x01\x02]//g' "$raw"
+  rm -f "$raw"
+  return "$code"
 }
 
 task_check() {
@@ -164,7 +172,7 @@ task_secret() {
 
 task_deploy_agent() {
   local node_bin
-  node_bin="$(sprite_sh 'if [ -x "$HOME/.local/node/bin/node" ]; then echo "$HOME/.local/node/bin/node"; else command -v node; fi' | tr -d '\r' | tail -1)"
+  node_bin="$(sprite_sh 'if [ -x "$HOME/.local/node/bin/node" ]; then echo "$HOME/.local/node/bin/node"; else command -v node; fi' | tail -1)"
   echo "NODE_BIN on the Sprite: $node_bin"
   NODE_BIN="$node_bin" bash "$(dirname "${BASH_SOURCE[0]}")/deploy-agent.sh"
 }

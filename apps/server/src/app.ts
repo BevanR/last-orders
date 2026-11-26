@@ -48,7 +48,7 @@ interface SuspectParams extends RoomParams {
 
 export async function buildApp(
   config: Config,
-  opts: { logger?: boolean; startDispatcher?: boolean } = {},
+  opts: { logger?: boolean; startDispatcher?: boolean; fetch?: typeof fetch } = {},
 ): Promise<AppContext> {
   const db = createPool(config.databaseUrl);
   await migrate(db);
@@ -71,6 +71,7 @@ export async function buildApp(
   const dispatcher = new Dispatcher(jobs, {
     wakeUrl: config.agentWakeUrl,
     intervalMs: config.dispatcherIntervalMs,
+    fetch: opts.fetch,
     log,
     periodic: () => games!.periodic(),
   });
@@ -113,6 +114,8 @@ export async function buildApp(
     limit(roomsPerIp, req.ip);
     const { displayName } = parseBody(NameSchema, req.body);
     const r = await games!.createRoom(displayName);
+    // A sleeping agent can take minutes to wake. Wake it now, before the first job exists.
+    dispatcher.prewarm();
     setSessionCookie(reply, r.sessionToken, config.cookieSecure);
     return { roomCode: r.roomCode, hostUrl: `/h/${r.hostToken}`, inviteUrl: `/r/${r.roomCode}` };
   });
@@ -139,6 +142,8 @@ export async function buildApp(
     const s = await member(req);
     requireHost(s);
     await games!.start(s);
+    // The lobby can last long enough for the agent to fall asleep again.
+    dispatcher.prewarm();
     return { ok: true };
   });
 

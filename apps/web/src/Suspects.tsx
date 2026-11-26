@@ -18,6 +18,9 @@ export function replyParts(m: Message, speaker: string): { stage: string; words:
   return { stage: stage?.[1] ?? '', words: quoted ? quoted[1]! : t };
 }
 
+/** After this long without a reply, the waiting bubble says the game master may be asleep. */
+const SLOW_REPLY_MS = 20_000;
+
 export function Suspects({ code, view, messages }: { code: string; view: View; messages: EventTarget }) {
   const [open, setOpen] = useState<string | null>(null);
   const suspect = view.suspects.find((s) => s.id === open);
@@ -90,6 +93,16 @@ function InterviewRoom(props: {
   const presentable = view.actions.present.map((id) => ({ id, name: cards.get(id) ?? id }));
   const waiting = iv?.waiting ?? false;
   const closed = !view.actions.interview.includes(suspect.id);
+  const [slow, setSlow] = useState(false);
+
+  useEffect(() => {
+    if (!waiting) return;
+    const t = setTimeout(() => setSlow(true), SLOW_REPLY_MS);
+    return () => {
+      clearTimeout(t);
+      setSlow(false);
+    };
+  }, [waiting]);
 
   const say = async (t: string) => {
     setError('');
@@ -177,6 +190,7 @@ function InterviewRoom(props: {
               <span className="words">
                 {suspect.name} is thinking<span className="dots" aria-hidden="true" />
               </span>
+              {slow && <span className="slow-note">The game master is waking up. This can take a minute.</span>}
             </div>
           )}
           <div ref={endRef} />

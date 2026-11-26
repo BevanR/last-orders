@@ -66,9 +66,15 @@ payload), `accusations`.
    starts, so the Sprite is awake before the first reply job. A cold wake usually takes about
    5.6 s but once took about 4 minutes (26 November 2026). The pre-warm ping waits up to 300 s,
    never blocks the request, and only one is in flight per app process.
+   The agent answers `/wake` with 202 at once but keeps the response open (heartbeat lines)
+   until its drain is done, and the app keeps reading it for up to 5 minutes. The Sprite is
+   suspended when no request to it is open, even mid model call; the open wake request keeps
+   it awake while the agent works.
 3. The agent claims jobs from `POST /internal/agent/jobs/claim` (bearer `AGENT_SHARED_SECRET`).
    Claim picks the oldest pending job whose `serial_key` (e.g. `game:suspect`) has no running
-   job — this serialises replies per suspect — and sets a lease (60s).
+   job — this serialises replies per suspect — and sets a lease (120s). The lease covers the
+   agent's worst case with margin: two model attempts of at most 30s each (headers and body)
+   plus two 10s attempts to report the result, about 80s.
 4. The agent fetches scoped context with the job, calls the model, and submits
    `POST /internal/agent/jobs/:id/complete` with the lease token and output.
 5. The app validates the lease, the output schema, and that `input_revision` still matches the

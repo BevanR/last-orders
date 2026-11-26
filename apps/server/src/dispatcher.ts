@@ -14,12 +14,22 @@ export interface DispatcherOptions {
    * game-master ticks. Returns how many jobs it enqueued.
    */
   periodic?: () => Promise<number>;
+  /** Longest time a wake request is held open while the agent works (default 5 minutes). */
+  wakeHoldMs?: number;
 }
 
 /** A sleeping Sprite took 5.6 s to answer its first request (infra/sprite/FINDINGS.md). */
 const WAKE_PING_TIMEOUT_MS = 15_000;
 /** One cold wake took about 4 minutes (26 November 2026). A pre-warm ping waits that long. */
 const PREWARM_TIMEOUT_MS = 300_000;
+/**
+ * The agent answers `POST /wake` at once but keeps the response open until its drain is done,
+ * because the Sprite is suspended when no request to it is open, even while the agent is waiting
+ * on the app or the model (infra/sprite/FINDINGS.md). The app keeps reading that response, so
+ * the Sprite stays awake, for up to this long. It exceeds the agent's worst case for one job
+ * (about 80 s) several times over.
+ */
+const WAKE_HOLD_MS = 300_000;
 
 export interface TickResult {
   requeued: number;
@@ -47,6 +57,7 @@ export class Dispatcher {
   private readonly fetchImpl: typeof fetch;
   private readonly now: () => number;
   private readonly log: (msg: string) => void;
+  private readonly wakeHoldMs: number;
 
   constructor(
     private readonly jobs: JobQueue,
@@ -58,6 +69,7 @@ export class Dispatcher {
     this.fetchImpl = opts.fetch ?? fetch;
     this.now = opts.now ?? Date.now;
     this.log = opts.log ?? (() => {});
+    this.wakeHoldMs = opts.wakeHoldMs ?? WAKE_HOLD_MS;
   }
 
   start() {
@@ -148,16 +160,41 @@ export class Dispatcher {
     return { requeued, enqueued, pending, pinged: ok };
   }
 
-  private async ping(timeoutMs: number): Promise<boolean> {
-    try {
-      const res = await this.fetchImpl(this.opts.wakeUrl, {
-        method: 'POST',
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-      return res.ok;
-    } catch (err) {
-      this.log(`wake ping failed: ${(err as Error).message}`);
-      return false;
-    }
+  /**
+   * POST the wake URL. Resolves true once the agent answers (response headers), false on an
+   * error or when no answer comes within `timeoutMs`. The request itself stays open after that,
+   * up to `wakeHoldMs`: the response body is read until the agent ends it (its drain is done).
+   * An open request is what keeps the Sprite awake while the agent works. A request with no
+   * answer yet is kept too, in case a proxy holds the headers back until the body is complete.
+   */
+  private ping(timeoutMs: number): Promise<boolean> {
+    const ac = new AbortController();
+    const hold = setTimeout(() => ac.abort(new Error('wake hold limit reached')), this.wakeHoldMs);
+    hold.unref?.();
+    const request = this.fetchImpl(this.opts.wakeUrl, { method: 'POST', signal: ac.signal });
+    void request
+      .then(async (res) => {
+        if (!res.body) return;
+        const reader = res.body.getReader();
+        while (!(await reader.read()).done);
+      })
+      .catch(() => {})
+      .finally(() => clearTimeout(hold));
+    let timer: NodeJS.Timeout | undefined;
+    const answered = request.then(
+      (res) => res.ok,
+      (err: Error) => {
+        this.log(`wake ping failed: ${err.message}`);
+        return false;
+      },
+    );
+    const noAnswer = new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => {
+        this.log(`wake ping failed: no answer within ${timeoutMs} ms`);
+        resolve(false);
+      }, timeoutMs);
+      timer.unref?.();
+    });
+    return Promise.race([answered, noAnswer]).finally(() => clearTimeout(timer));
   }
 }

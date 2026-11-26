@@ -34,7 +34,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     host: env.HOST ?? '0.0.0.0',
     webDist: env.WEB_DIST ?? here('../../web/dist'),
     cookieSecure: env.COOKIE_INSECURE !== '1',
-    leaseSeconds: Number(env.JOB_LEASE_SECONDS ?? 60),
+    leaseSeconds: Number(env.JOB_LEASE_SECONDS ?? 120),
     maxJobAttempts: Number(env.JOB_MAX_ATTEMPTS ?? 3),
     dispatcherIntervalMs: Number(env.DISPATCHER_INTERVAL_MS ?? 10_000),
     gmTickSeconds: Number(env.GM_TICK_SECONDS ?? 90),

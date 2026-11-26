@@ -412,6 +412,44 @@ describe('dispatcher', () => {
     answer();
   });
 
+  it('keeps reading a held wake response until the agent ends it, up to the hold limit', async () => {
+    await startedGame(srv.baseUrl).then(([alice]) => alice!.say('ada', 'Hello?'));
+    const streams: Array<{ ctrl: ReadableStreamDefaultController<Uint8Array>; signal: AbortSignal }> = [];
+    const fakeFetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+      let ctrl!: ReadableStreamDefaultController<Uint8Array>;
+      const body = new ReadableStream<Uint8Array>({ start: (c) => void (ctrl = c) });
+      streams.push({ ctrl, signal: init!.signal! });
+      return new Response(body, { status: 202 });
+    }) as typeof fetch;
+    const d = new Dispatcher(srv.jobs, {
+      wakeUrl: 'http://agent.test/wake',
+      intervalMs: 1_000,
+      fetch: fakeFetch,
+      wakeHoldMs: 200,
+    });
+
+    // The ping counts as answered at the headers; the request stays open meanwhile.
+    expect((await d.tick()).pinged).toBe(true);
+    const enc = new TextEncoder();
+    streams[0]!.ctrl.enqueue(enc.encode('accepted\n'));
+    await sleep(50);
+    expect(streams[0]!.signal.aborted).toBe(false);
+    // The agent ends the response when its drain is done: nothing is aborted.
+    streams[0]!.ctrl.enqueue(enc.encode('done 1\n'));
+    streams[0]!.ctrl.close();
+    await sleep(250);
+    expect(streams[0]!.signal.aborted).toBe(false);
+
+    // A response the agent never ends is let go at the hold limit.
+    await sleep(1_100);
+    expect((await d.tick()).pinged).toBe(true);
+    expect(streams).toHaveLength(2);
+    await sleep(100);
+    expect(streams[1]!.signal.aborted).toBe(false);
+    await sleep(200);
+    expect(streams[1]!.signal.aborted).toBe(true);
+  });
+
   it('does not pre-warm when the wake URL is empty', async () => {
     const pings: string[] = [];
     const fakeFetch = (async (url: string | URL | Request) => {

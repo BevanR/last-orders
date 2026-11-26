@@ -12,6 +12,8 @@
 #   deploy-agent     run infra/sprite/deploy-agent.sh
 #   public           set the Sprite URL to public (url_settings.auth = public)
 #   measure          GET /healthz on the Sprite URL: warm, then cold after the Sprite sleeps
+#   logs             read-only: last 100 lines of the agent's service log on the Sprite and
+#                    `flyctl logs -a last-orders --no-tail` from LOGS_SINCE (HH:MM UTC) on
 #   all              setup, secret, deploy-agent, public, check
 #
 # Never prints a token or the shared secret. Anything derived from a secret is masked in
@@ -218,6 +220,45 @@ task_measure() {
   curl -sS -X POST -w ' HTTP %{http_code} total %{time_total}s\n' "$url/wake" || true
 }
 
+# redact: hide anything that looks like a secret (bearer tokens, long hex, API keys).
+redact() {
+  sed -E 's/(Bearer|bearer) [A-Za-z0-9._~+\/=-]+/\1 [redacted]/g; s/[0-9a-fA-F]{32,}/[hex-redacted]/g; s/sk-ant-[A-Za-z0-9_-]+/[key-redacted]/g; s/(secret|token|password)([":= ]+)[^ ",}]+/\1\2[redacted]/Ig'
+}
+
+task_logs() {
+  log "Agent service log on the Sprite (last ${LOG_LINES:-100} lines)"
+  sprite_sh "tail -n ${LOG_LINES:-100} /.sprite/logs/services/$SERVICE_NAME.log" | redact
+  if command -v flyctl >/dev/null && [ -n "${FLY_API_TOKEN:-}" ]; then
+    log "flyctl logs -a $FLY_APP --no-tail (from ${LOGS_SINCE:-00:00} UTC)"
+    flyctl logs -a "$FLY_APP" --no-tail 2>&1 | awk -v since="${LOGS_SINCE:-00:00}" '
+      match($0, /T[0-9][0-9]:[0-9][0-9]/) { t = substr($0, RSTART + 1, 5); if (t >= since) print; next }
+      { print }' | redact | tail -n "${FLY_LOG_LINES:-300}"
+  else
+    echo "flyctl or FLY_API_TOKEN missing; skipping Fly logs"
+  fi
+}
+
+task_probe() {
+  log "From inside the Sprite: reach the app (no auth header; a claim without auth must get 401)"
+  sprite_sh 'for i in 1 2 3; do
+    curl -sS -o /dev/null -m 30 -w "GET  /healthz              HTTP %{http_code} dns %{time_namelookup}s connect %{time_connect}s tls %{time_appconnect}s total %{time_total}s ip %{remote_ip}\n" https://last-orders.fly.dev/healthz
+    curl -sS -o /dev/null -m 30 -X POST -w "POST /internal/agent/jobs/claim HTTP %{http_code} total %{time_total}s ip %{remote_ip}\n" https://last-orders.fly.dev/internal/agent/jobs/claim
+  done
+  getent hosts last-orders.fly.dev
+  echo "--- Node fetch (fresh process), 3 tries"
+  /.sprite/bin/node -e "
+    (async () => { for (let i = 0; i < 3; i++) { const t = Date.now();
+      try { const r = await fetch(\"https://last-orders.fly.dev/internal/agent/jobs/claim\", { method: \"POST\", signal: AbortSignal.timeout(20000) });
+        console.log(\"node fetch claim HTTP\", r.status, Date.now() - t, \"ms\"); }
+      catch (e) { console.log(\"node fetch claim error\", e.cause?.code || e.name, e.message, Date.now() - t, \"ms\"); } } })()"
+  echo "--- sockets of the agent process"
+  pid=$(pgrep -f "last-orders/agent.mjs" | head -1); echo "agent pid $pid"
+  ss -tnp 2>/dev/null | grep -E "pid=$pid," | head -20 || echo "ss unavailable"'
+  log "Sprite network policy"
+  api GET "/policy/network" | jq -c . | head -c 2000
+  echo
+}
+
 case "${1:-}" in
   check) task_check ;;
   setup) task_setup ;;
@@ -226,6 +267,8 @@ case "${1:-}" in
   deploy-agent) task_deploy_agent ;;
   public) task_public ;;
   measure) task_measure ;;
+  logs) task_logs ;;
+  probe) task_probe ;;
   all) task_setup; task_secret; task_deploy_agent; task_public; task_check ;;
   *) sed -n '2,20p' "$0"; exit 2 ;;
 esac

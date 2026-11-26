@@ -14,6 +14,7 @@
 #   measure          GET /healthz on the Sprite URL: warm, then cold after the Sprite sleeps
 #   logs             read-only: last 100 lines of the agent's service log on the Sprite and
 #                    `flyctl logs -a last-orders --no-tail` from LOGS_SINCE (HH:MM UTC) on
+#   clock            read-only: host vs guest elapsed time of the agent process (pauses)
 #   all              setup, secret, deploy-agent, public, check
 #
 # Never prints a token or the shared secret. Anything derived from a secret is masked in
@@ -236,6 +237,20 @@ task_logs() {
   else
     echo "flyctl or FLY_API_TOKEN missing; skipping Fly logs"
   fi
+  task_clock
+}
+
+# Read-only: was the Sprite paused while the agent ran? Compares host wall time since the
+# service started (REST started_at) with the agent process's elapsed time inside the VM.
+task_clock() {
+  log "Clock: service started_at (host) vs agent process elapsed time (guest)"
+  echo "runner now: $(date -u +%FT%TZ)"
+  api GET "/services/$SERVICE_NAME" | jq -c '{status: .state.status, pid: .state.pid, started_at: .state.started_at}' || true
+  sprite_sh 'echo "guest now: $(date -u +%FT%T.%3NZ)"; echo "uptime: $(cut -d" " -f1 /proc/uptime) s"
+  grep btime /proc/stat
+  pid=$(pgrep -f "last-orders/agent.mjs" | head -1); echo "agent pid $pid etimes $(ps -o etimes= -p "$pid" | tr -d " ") s, lstart $(ps -o lstart= -p "$pid")"
+  echo "clocksource: $(cat /sys/devices/system/clocksource/clocksource0/current_clocksource 2>/dev/null)"' || true
+  api GET "" | jq -c '{status, last_started_at, last_active_at}' || true
 }
 
 task_probe() {
@@ -269,6 +284,7 @@ case "${1:-}" in
   measure) task_measure ;;
   logs) task_logs ;;
   probe) task_probe ;;
+  clock) task_clock ;;
   all) task_setup; task_secret; task_deploy_agent; task_public; task_check ;;
   *) sed -n '2,20p' "$0"; exit 2 ;;
 esac

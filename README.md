@@ -76,7 +76,7 @@ Server (`apps/server`):
 | `CASE_FILE` | `case/last-orders.case.json` | Case to load. Tests use the fixture in `packages/engine/test/fixtures/`. |
 | `PORT` | `8080` | HTTP port. |
 | `COOKIE_INSECURE` | (unset) | `1` drops the `Secure` cookie flag for local `http://`. |
-| `JOB_LEASE_SECONDS`, `JOB_MAX_ATTEMPTS`, `DISPATCHER_INTERVAL_MS` | `60`, `3`, `10000` | Job queue tuning. |
+| `JOB_LEASE_SECONDS`, `JOB_MAX_ATTEMPTS`, `DISPATCHER_INTERVAL_MS` | `120`, `3`, `10000` | Job queue tuning. |
 | `GM_TICK_SECONDS` | `90` | Seconds between game-master ticks per active game. `0` turns the game master off. |
 | `GM_IDLE_MINUTES` | `20` | No game-master ticks once no player has acted for this long. |
 

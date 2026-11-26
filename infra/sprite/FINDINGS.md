@@ -163,3 +163,42 @@ Ruled out: a broken job blocking the queue (a failing context build would be a f
 500) and a secret mismatch (that would be a fast 401).
 
 Recovery without the fix: restart the agent service (any agent deploy does).
+
+## Model calls and claims stall: the Sprite sleeps mid-drain (26 November 2026)
+
+**Conclusion (inferred, strong):** the Sprite is suspended while the agent is still working.
+The agent answered `POST /wake` with 202 and drained in the background, so no request to the
+Sprite was open during claims, model calls or result posts. Each app wake ping (every ~60 s at
+max backoff) resumed the Sprite for a moment: pending timers fired at once ("aborted due to
+timeout"), the retry was sent, and the Sprite slept again before it was answered. Not the
+undici dispatcher of PR #6: job 6 (`reveal_commentary`) completed through it at 05:51:14, 3 s
+after the deploy.
+
+Evidence (measured; sprite-ops runs 45765901649 `logs`, 45766131381 `clock`):
+- pid 5134 (started 05:51:10): from 05:51:49 every claim timed out, then its retry too. The
+  gaps between "retrying on a fresh connection" and the retry's timeout (10 s timer) were
+  2.5–71 s, and the claim failures came ~70 s apart: the wake ping cadence (60 s backoff cap +
+  10 s dispatcher tick), not the agent's own timers.
+- Job 8: `model request failed (Request timed out.); retrying` 05:56:44, `job 8 failed:
+  Request timed out.` 05:57:17, then both `/fail` posts timed out (05:57:52, 05:58:27). The app
+  posted "No answer came" at 05:56:57 after 3 lease expiries (lease 60 s; ~104 s per attempt).
+- Same pattern before PR #6 with the global fetch: `job 4 failed: Request timed out.` 05:39:49.
+- Clock: at 06:08:31 the host said pid 5134 had run 1,041 s; inside the VM its elapsed time was
+  2,704 s (`ps etimes`). The guest's boot clock ran 1,662 s ahead of wall time in 17 minutes:
+  the VM's clocks are discontinuous, as after repeated snapshot/restore. Guest wall clock also
+  lagged the service log's host stamps by up to 1.6 s (05:14:10).
+- Runs that worked (04:48, 04:51, 05:51:14) were all within seconds of a deploy, while the
+  deploy's own exec/REST traffic kept the Sprite awake.
+
+Second gap, fixed too: the SDK timeout stops at the response headers, so a body that stalls
+hung the job until its lease expired; and the agent's worst case (2 × 30 s model + 2 × 10 s
+result post ≈ 80 s) did not fit the 60 s lease.
+
+Fix (branch `fix/agent-model-calls`): `/wake` answers 202 at once but keeps the response open
+(heartbeat line every 10 s) until the drain ends; the app reads it for up to 5 minutes. Model
+attempts get a 30 s deadline covering the body. Lease default 120 s.
+
+Not verified: that an open request through the Sprite URL keeps the Sprite awake (Sprites'
+idle rule is not documented here), and whether the Sprite proxy streams or buffers the held
+response (the app keeps the request open either way). Check after deploy: one real question
+answered, and agent log with no "aborted due to timeout" during a drain.

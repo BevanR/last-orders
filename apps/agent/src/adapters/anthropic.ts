@@ -17,7 +17,11 @@ export interface AnthropicAdapterOptions {
   maxTokens?: number;
   /** Test hook: replaces the HTTP transport (undici's fetch). It receives `init.dispatcher`. */
   fetch?: typeof fetch;
-  /** Per-attempt request timeout in ms, up to the response headers (default 30 s). */
+  /**
+   * Per-attempt time limit in ms, covering the response body as well as the headers (default
+   * 30 s). The SDK's own timeout stops at the headers, so a body that stalls would otherwise hang
+   * the job until its lease expires.
+   */
   timeoutMs?: number;
   /** Creates the connection pool for model calls (default: short keep-alive undici Agent). */
   createDispatcher?: () => Dispatcher;
@@ -42,37 +46,50 @@ export class AnthropicAdapter implements ModelAdapter {
     this.dispatcher = this.createDispatcher();
     // undici's own fetch, so the dispatcher comes from the same undici version as the fetch.
     const baseFetch = opts.fetch ?? (undiciFetch as unknown as typeof fetch);
+    const timeoutMs = opts.timeoutMs ?? 30_000;
     this.client = new Anthropic({
       ...(opts.baseURL ? { baseURL: opts.baseURL } : {}),
       ...(opts.apiKey
         ? { apiKey: opts.apiKey }
         : { apiKey: 'unused-behind-gateway', defaultHeaders: { 'x-api-key': null, authorization: null } }),
       // Every request goes through the current pool; reset after a network failure.
-      fetch: (url, init) => baseFetch(url, { ...init, dispatcher: this.dispatcher } as unknown as RequestInit),
+      fetch: (url, init) => {
+        const deadline = AbortSignal.timeout(timeoutMs);
+        const signal = init?.signal ? AbortSignal.any([init.signal, deadline]) : deadline;
+        return baseFetch(url, { ...init, signal, dispatcher: this.dispatcher } as unknown as RequestInit);
+      },
       // No SDK retries: they would also retry HTTP 408/409/429/5xx (and anything the server
       // marks x-should-retry), and a model call must never be paid for twice. create() does
       // the single network-error retry itself.
       maxRetries: 0,
-      timeout: opts.timeoutMs ?? 30_000,
+      timeout: timeoutMs,
     });
   }
 
   /**
    * messages.create with one retry, on a fresh connection pool, when the request failed at the
-   * network level or timed out (APIConnectionError, which includes APIConnectionTimeoutError).
-   * HTTP error responses (any status) are never retried.
+   * network level or timed out: APIConnectionError (which includes APIConnectionTimeoutError),
+   * or the per-attempt deadline cutting off a response body. HTTP error responses (any status)
+   * are never retried.
    */
   private async create(params: Anthropic.MessageCreateParamsNonStreaming): Promise<Anthropic.Message> {
     try {
       return await this.client.messages.create(params);
     } catch (err) {
-      if (!(err instanceof Anthropic.APIConnectionError)) throw err;
-      this.log(`model request failed (${err.message}); retrying on a fresh connection`);
+      if (!AnthropicAdapter.isNetworkFailure(err)) throw err;
+      this.log(`model request failed (${(err as Error).message}); retrying on a fresh connection`);
       const old = this.dispatcher;
       this.dispatcher = this.createDispatcher();
       old.destroy().catch(() => {});
       return await this.client.messages.create(params);
     }
+  }
+
+  private static isNetworkFailure(err: unknown): boolean {
+    if (err instanceof Anthropic.APIConnectionError) return true;
+    if (err instanceof Anthropic.APIError) return false;
+    const name = (err as Error | undefined)?.name;
+    return name === 'TimeoutError' || name === 'AbortError';
   }
 
   private usageOf(res: Anthropic.Message): TokenUsage {

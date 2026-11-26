@@ -15,6 +15,10 @@ on:
         description: Rotate AGENT_SHARED_SECRET even when it already exists (secret task)
         type: boolean
         default: false
+      node_bin:
+        description: Override the Node path for the agent service (deploy-agent task)
+        type: string
+        default: ''
       idle_seconds:
         description: Idle time before the cold request (measure task)
         type: string
@@ -37,6 +41,7 @@ jobs:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       FORCE_SECRET: ${{ inputs.force_secret && '1' || '' }}
       IDLE_SECONDS: ${{ inputs.idle_seconds }}
+      NODE_BIN_OVERRIDE: ${{ inputs.node_bin }}
     steps:
       - uses: actions/checkout@v7
 

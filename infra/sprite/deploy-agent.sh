@@ -21,7 +21,7 @@
 #   AGENT_DIR           [/home/sprite/last-orders]       where agent.mjs goes on the Sprite
 #   AGENT_SECRET_FILE   [/home/sprite/.config/last-orders/agent-shared-secret]
 #   AGENT_PORT          [8080]                           the wake server port, routed by the Sprite URL
-#   NODE_BIN            [node]                           Node 22 or later on the Sprite
+#   NODE_BIN            [/.sprite/bin/node]              Node 22 or later on the Sprite (the image's own)
 #   AGENT_APP_URL             [https://last-orders.fly.dev]           becomes APP_URL
 #   AGENT_MODEL_ADAPTER       [anthropic]                             becomes MODEL_ADAPTER
 #   AGENT_MODEL               [claude-sonnet-5-5]                     becomes MODEL
@@ -38,7 +38,7 @@ SERVICE_NAME="${SERVICE_NAME:-last-orders-agent}"
 AGENT_DIR="${AGENT_DIR:-/home/sprite/last-orders}"
 AGENT_SECRET_FILE="${AGENT_SECRET_FILE:-/home/sprite/.config/last-orders/agent-shared-secret}"
 AGENT_PORT="${AGENT_PORT:-8080}"
-NODE_BIN="${NODE_BIN:-node}"
+NODE_BIN="${NODE_BIN:-/.sprite/bin/node}"
 AGENT_APP_URL="${AGENT_APP_URL:-https://last-orders.fly.dev}"
 AGENT_MODEL_ADAPTER="${AGENT_MODEL_ADAPTER:-anthropic}"
 AGENT_MODEL="${AGENT_MODEL:-claude-sonnet-5-5}"
@@ -140,8 +140,10 @@ code="$(printf '%s' "$out" | tail -1)"
 echo "PUT service: HTTP $code"
 printf '%s\n' "$out" | sed '$d' | tail -5
 if [ "$code" = "409" ]; then
-  # A redeploy of a running service returned 409 on 26 November 2026 (Deploy run 45757007653).
-  # Stop it, then define it again; the start below brings it back.
+  # PUT returns 409 when the service is running with a different command (Deploy run 45757007653
+  # sent cmd "node" while the service ran "/.sprite/bin/node"). With the same command it returns
+  # 200 "Service already running with that command" and changes nothing. Stop it, then define it
+  # again; the start below brings it back.
   echo "==> Stopping $SERVICE_NAME to redefine it"
   api POST "/services/$SERVICE_NAME/stop" | tail -3
   stopped=1

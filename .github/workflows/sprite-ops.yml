@@ -1,0 +1,51 @@
+name: Sprite ops
+
+# Manual operations on the Sprite last-orders-gm: see infra/sprite/ops.sh for each task.
+# Pick the branch to run from in the "Use workflow from" menu (or `ref` in the API).
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: Task for infra/sprite/ops.sh
+        type: choice
+        required: true
+        default: check
+        options: [check, setup, connector-proof, secret, deploy-agent, public, measure, all]
+      force_secret:
+        description: Rotate AGENT_SHARED_SECRET even when it already exists (secret task)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sprite-ops
+  cancel-in-progress: false
+
+jobs:
+  ops:
+    name: ops.sh ${{ inputs.task }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SPRITES_TOKEN: ${{ secrets.SPRITES_TOKEN }}
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      FORCE_SECRET: ${{ inputs.force_secret && '1' || '' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        if: inputs.task == 'deploy-agent' || inputs.task == 'all'
+        with:
+          node-version: 22
+          cache: npm
+
+      - if: inputs.task == 'deploy-agent' || inputs.task == 'all'
+        run: npm ci
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: inputs.task == 'secret' || inputs.task == 'all'
+
+      - name: ops.sh ${{ inputs.task }}
+        run: bash infra/sprite/ops.sh "${{ inputs.task }}"

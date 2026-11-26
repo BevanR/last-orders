@@ -244,7 +244,16 @@ task_probe() {
     curl -sS -o /dev/null -m 30 -w "GET  /healthz              HTTP %{http_code} dns %{time_namelookup}s connect %{time_connect}s tls %{time_appconnect}s total %{time_total}s ip %{remote_ip}\n" https://last-orders.fly.dev/healthz
     curl -sS -o /dev/null -m 30 -X POST -w "POST /internal/agent/jobs/claim HTTP %{http_code} total %{time_total}s ip %{remote_ip}\n" https://last-orders.fly.dev/internal/agent/jobs/claim
   done
-  getent hosts last-orders.fly.dev'
+  getent hosts last-orders.fly.dev
+  echo "--- Node fetch (fresh process), 3 tries"
+  /.sprite/bin/node -e "
+    (async () => { for (let i = 0; i < 3; i++) { const t = Date.now();
+      try { const r = await fetch(\"https://last-orders.fly.dev/internal/agent/jobs/claim\", { method: \"POST\", signal: AbortSignal.timeout(20000) });
+        console.log(\"node fetch claim HTTP\", r.status, Date.now() - t, \"ms\"); }
+      catch (e) { console.log(\"node fetch claim error\", e.cause?.code || e.name, e.message, Date.now() - t, \"ms\"); } } })()"
+  echo "--- sockets of the agent process"
+  pid=$(pgrep -f "last-orders/agent.mjs" | head -1); echo "agent pid $pid"
+  ss -tnp 2>/dev/null | grep -E "pid=$pid," | head -20 || echo "ss unavailable"'
   log "Sprite network policy"
   api GET "/policy/network" | jq -c . | head -c 2000
   echo

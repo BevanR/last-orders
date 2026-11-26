@@ -8,7 +8,8 @@ Measured 26 November 2026 (UTC) through `.github/workflows/sprite-ops.yml` runs 
 - The Anthropic connector works from inside the Sprite. Real `claude-sonnet-5-5` replies came
   back over raw HTTP and through `@anthropic-ai/sdk` (run 45753023189).
 - The agent runs on the Sprite as service `last-orders-agent` and answers on its public URL
-  (run 45753317907, 45753618843).
+  (run 45753317907, 45753618843). It survives a sleep: after 15 minutes idle the first
+  request took 5.6 s and the same process (same pid) answered (run 45754268931).
 - `AGENT_SHARED_SECRET` is staged on Fly and written to the Sprite (run 45753183377).
 - Not yet verified: a real game job end to end (app → `POST /wake` → Sprite → app API →
   connector). That needs the next app deploy, which loads the staged secret and the new
@@ -94,13 +95,28 @@ inside the Sprite with no auth header.
 
 ## Latency: `GET /healthz` on the public URL
 
-Warm, from a GitHub runner (run 45753618843), 8 requests: total 0.17–0.33 s; TCP connect
-~0.01 s, TLS done ~0.025 s, so nearly all of it is time to first byte through the Sprite proxy.
-From a cloud session: 0.21–0.43 s.
+| Case | Source | Requests | Total time |
+|---|---|---|---|
+| Warm | GitHub runner (run 45754268931) | 8 | 0.057–0.154 s |
+| Warm | GitHub runner (run 45753618843) | 8 | 0.17–0.33 s |
+| Warm | cloud session | 3 | 0.21–0.43 s |
+| **Cold**, after 900 s with no URL traffic | GitHub runner (run 45754268931) | 1 | **5.59 s** (connect 0.12 s, TLS 0.13 s, first byte 5.59 s) |
+| Straight after the cold request | GitHub runner | 3 | 0.084–0.103 s |
 
-`POST /wake`: HTTP 202 `{"accepted":true}` in 0.18 s.
-
-COLD_RESULTS
+- Wait before the cold request: 900 s (15 minutes), measured from the last `/healthz` at
+  04:17:40 UTC to 04:32:41 UTC. Only REST status calls ran during the wait.
+- The service came back by itself after the cold wake: `pid 2355`, `started_at
+  2026-11-26T04:08:53Z` before and after. Inferred: the Sprite suspends and resumes the process
+  rather than restarting it. In-memory state survives a sleep, but the agent must not rely on
+  that (a Sprite restart would lose it).
+- REST `.status` during the idle read `cold` at most polls and `warm` at 420 s and 540 s. I
+  can't explain the two `warm` readings; nothing sent traffic to the URL then (not verified for
+  the Sprite's own background activity).
+- I did not measure how soon the Sprite sleeps. The idle timeout is somewhere under 15 minutes.
+- `POST /wake`: HTTP 202 `{"accepted":true}` in 0.07–0.18 s warm.
+- Effect on the game: the first wake after an idle period adds about 5.5 s before the agent
+  starts a drain. The app's wake ping timed out at 5 s, so the first ping after a sleep would
+  have aborted. Raised to 15 s in `apps/server/src/dispatcher.ts` on this branch.
 
 ## Recommendations
 

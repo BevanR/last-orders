@@ -189,28 +189,30 @@ timing() {
 }
 
 task_measure() {
-  local url status waited=0 max="${COLD_WAIT_MAX:-1500}"
+  # GET /v1/sprites/{name} .status is not a wake signal: on 26 November 2026 it read "cold" while
+  # the service answered in 0.2s with an unchanged pid. So this idles for IDLE_SECONDS with no
+  # traffic to the Sprite URL (polling only the REST status, which does not wake it), then times
+  # the first request and compares the service's pid and started_at before and after.
+  local url idle="${IDLE_SECONDS:-900}" before after waited=0
   url="$(api GET "" | jq -r '.url')"
   log "Warm: GET $url/healthz x5"
   for _ in 1 2 3 4 5; do timing "$url/healthz"; sleep 1; done
-  log "Waiting for the Sprite to go cold (status poll every 15s, max ${max}s; GET /v1/sprites/{name} only)"
-  while :; do
-    status="$(api GET "" | jq -r '.status')"
-    echo "  t=${waited}s status=$status"
-    [ "$status" != "running" ] && break
-    [ "$waited" -ge "$max" ] && { echo "  still running after ${max}s"; break; }
-    sleep 15; waited=$((waited + 15))
+  before="$(api GET "/services/$SERVICE_NAME" | jq -c '.state | {status, pid, started_at}')"
+  echo "service before idle: $before"
+  log "Idle ${idle}s with no requests to the Sprite URL (REST status every 60s)"
+  while [ "$waited" -lt "$idle" ]; do
+    sleep 60; waited=$((waited + 60))
+    echo "  t=${waited}s sprite status=$(api GET "" | jq -r '.status')"
   done
-  echo "Cold wait: ${waited}s, status: $status"
-  log "Cold: first GET $url/healthz"
+  log "After ${idle}s idle: first GET $url/healthz"
   timing "$url/healthz"
-  log "Warm again x3"
+  log "Then x3"
   for _ in 1 2 3; do timing "$url/healthz"; sleep 1; done
+  after="$(api GET "/services/$SERVICE_NAME" | jq -c '.state | {status, pid, started_at}')"
+  echo "service after idle: $after"
+  [ "$before" = "$after" ] && echo "same process (no restart)" || echo "service state changed"
   log "POST /wake (no data)"
   curl -sS -X POST -w ' HTTP %{http_code} total %{time_total}s\n' "$url/wake" || true
-  log "Service after cold wake"
-  api GET "/services/$SERVICE_NAME" | jq -c '.' | head -c 2000
-  echo
 }
 
 case "${1:-}" in

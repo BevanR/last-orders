@@ -15,6 +15,10 @@ on:
         description: Rotate AGENT_SHARED_SECRET even when it already exists (secret task)
         type: boolean
         default: false
+      idle_seconds:
+        description: Idle time before the cold request (measure task)
+        type: string
+        default: '900'
 
 permissions:
   contents: read
@@ -27,11 +31,12 @@ jobs:
   ops:
     name: ops.sh ${{ inputs.task }}
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     env:
       SPRITES_TOKEN: ${{ secrets.SPRITES_TOKEN }}
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       FORCE_SECRET: ${{ inputs.force_secret && '1' || '' }}
+      IDLE_SECONDS: ${{ inputs.idle_seconds }}
     steps:
       - uses: actions/checkout@v7
 

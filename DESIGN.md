@@ -62,7 +62,10 @@ payload), `accusations`.
 1. A player action that needs the model is validated, recorded, and a job is inserted in one
    transaction. `idempotency_key` is derived from the triggering row (e.g. message id).
 2. The app pings `POST <sprite-url>/wake` (no payload beyond "work exists"). This wakes a cold
-   Sprite.
+   Sprite. The app also sends one pre-warm ping when a host creates a room and when the game
+   starts, so the Sprite is awake before the first reply job. A cold wake usually takes about
+   5.6 s but once took about 4 minutes (26 November 2026). The pre-warm ping waits up to 300 s,
+   never blocks the request, and only one is in flight per app process.
 3. The agent claims jobs from `POST /internal/agent/jobs/claim` (bearer `AGENT_SHARED_SECRET`).
    Claim picks the oldest pending job whose `serial_key` (e.g. `game:suspect`) has no running
    job — this serialises replies per suspect — and sets a lease (60s).

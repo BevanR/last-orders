@@ -20,7 +20,10 @@ export interface TestServer extends AppContext {
 }
 
 /** Start the app on a random port against a clean test database, with an in-process agent. */
-export async function startServer(overrides: Partial<Config> = {}): Promise<TestServer> {
+export async function startServer(
+  overrides: Partial<Config> = {},
+  appOpts: { fetch?: typeof fetch } = {},
+): Promise<TestServer> {
   const config: Config = {
     ...loadConfig({}),
     databaseUrl: TEST_DATABASE_URL,
@@ -31,7 +34,7 @@ export async function startServer(overrides: Partial<Config> = {}): Promise<Test
     caseFile: FIXTURE_CASE,
     ...overrides,
   };
-  const ctx = await buildApp(config, { startDispatcher: false });
+  const ctx = await buildApp(config, { startDispatcher: false, ...appOpts });
   await ctx.db.query('TRUNCATE games RESTART IDENTITY CASCADE');
   await ctx.app.listen({ port: 0, host: '127.0.0.1' });
   const port = (ctx.app.server.address() as AddressInfo).port;

@@ -1609,6 +1609,12 @@ button.back {
   color: var(--paper-muted);
   font-style: italic;
 }
+.bubble.typing .slow-note {
+  display: block;
+  margin-top: 4px;
+  color: var(--paper-muted);
+  font-size: 0.85rem;
+}
 .dots::after {
   content: '…';
   display: inline-block;

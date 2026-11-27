@@ -326,8 +326,9 @@ npm run test:e2e
 `npm run screenshots` plays a short game with the simulated agent and saves each main view at
 375x812 and 1440x900 (device scale 2) to `docs/screenshots/`. It needs the same setup as the
 end-to-end test. The committed set was reduced to 256 colours afterwards, except the lobby, to keep
-the repository small. Some of the committed screenshots show evidence and testimony from late in
-the case; the three above do not.
+the repository small. The script skips the interview, board, accusation and reveal views, because
+they show evidence or the solution. Set `SCREENSHOTS_SPOILERS=1` to save them locally; don't commit
+them.
 
 ### Suspect evals
 

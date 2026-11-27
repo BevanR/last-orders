@@ -56,7 +56,16 @@ async function waitHealthy(url) {
 // Live toasts come and go; hide them so each shot shows the view itself.
 const HIDE_TOASTS = '.toast { display: none !important; }';
 
+// Views that show decisive evidence, testimony or the solution. They are skipped unless
+// SCREENSHOTS_SPOILERS=1, so the public docs/screenshots set stays spoiler-free.
+const SPOILER_VIEWS = new Set(['05-interview', '06-board', '08-accusation', '09-reveal']);
+const WITH_SPOILERS = process.env.SCREENSHOTS_SPOILERS === '1';
+
 async function shot(page, name, prepare) {
+  if (SPOILER_VIEWS.has(name) && !WITH_SPOILERS) {
+    console.log(`skipped ${name} (spoiler; set SCREENSHOTS_SPOILERS=1 to save it)`);
+    return;
+  }
   for (const [size, viewport] of SIZES) {
     await page.setViewportSize(viewport);
     await page.waitForTimeout(300);

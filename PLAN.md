@@ -20,6 +20,7 @@ least one connector." Submission needs a public code link, a demo, and a short d
 | Model access | Sprites **Anthropic connector** (bring-your-own-key), billed to Bevan's Anthropic API account. Not OpenRouter. |
 | Runtime model | `claude-sonnet-5-5`, configurable. Use `claude-haiku-5-5` for dev and evals. Tests use a simulated adapter (no model calls). |
 | Spend | MPG `dev-256` (US$4 per 30 days). Model spend cap US$50 total; expected US$5–15. Enforce a per-room cap in code. |
+| Merging | Trunk-based. Agents merge their own PRs to `main` once CI is green; no waiting for Bevan. |
 | Stack (agent decision) | TypeScript throughout. React (Vite) client, small Node server, PostgreSQL with SQL migrations, SSE for live updates, schema-validated model output. |
 
 ## Fly resources (org `bevan-rudge`)

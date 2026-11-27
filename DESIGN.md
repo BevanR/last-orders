@@ -160,18 +160,19 @@ Where the full case differs from, or adds detail to, the design above:
 
 - **Case file.** `case/last-orders.case.json` is the default `CASE_FILE`; the fixture stays for unit
   tests. Gaps and contradictions patched in the JSON are listed at the end of `case/bible.md`.
-- **Testimony threads.** A suspect has one or more threads (Lionel: where and money), each with
-  its own state. `suspect_states` has one row per `(game, suspect, thread)`. A transition moves
-  one thread and may move others (`also_set`); it can also require a condition (TL4 needs TL1).
+- **Testimony threads.** A suspect has one or more threads (for example, one for where they were
+  and one for money), each with its own state. `suspect_states` has one row per
+  `(game, suspect, thread)`. A transition moves one thread and may move others (`also_set`); it
+  can also require a condition (one transition may need another to have fired).
   A reply's staleness check uses the sum of the suspect's thread revisions.
 - **Location actions.** Each location has visible actions with their own unlock (the storm hatch
   opens in Act II inside an Act I room). A card comes from exactly one action.
 - **Reactions are decided by the engine.** When a card fires nothing, the engine picks the
   authored reaction for the suspect's current state ("already told" or default otherwise) at the
   moment of the presentation and stores it with the job. The model only voices it.
-- **The killer's brief holds only what he may say.** Lionel's context lists his account, lies and
-  the facts of his current state; it never states what he did. Every brief forbids confessing and
-  naming a killer.
+- **The killer's brief holds only what the killer may say.** That suspect's context lists their
+  account, lies and the facts of their current state; it never states what they did. Every brief
+  forbids confessing and naming a killer.
 - **Acts.** Authored `auto_advance` conditions are checked after every player action and on every
   dispatcher pass (timed conditions such as "12 minutes in Act I" are at most one pass late). Only
   the host ends the game; no timer does.

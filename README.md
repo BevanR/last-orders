@@ -1,8 +1,210 @@
 # Last Orders
 
-A multiplayer murder mystery for Fly.io Hacksgiving 2026. Humans investigate; AI plays the
-suspects. See [PLAN.md](PLAN.md) for decisions and status, and [DESIGN.md](DESIGN.md) for how the
-code is shaped.
+Last Orders is a murder mystery you play in a browser with friends. A storm has cut off a
+lodge on the West Coast of New Zealand. The owner lies dead at the foot of her cellar stairs.
+One to six people investigate together. Claude plays the four suspects and a game master. You
+search the lodge, question each suspect in private, and show them evidence to break their
+stories. A rules engine decides what each suspect knows and when their story changes, so the
+case stays fair and the killer never simply confesses. The agent runs on a Fly.io Sprite and
+calls Claude through the Sprites Anthropic connector. It is our entry for Fly.io Hacksgiving
+2026.
+
+**Play it: https://last-orders.fly.dev**
+
+Open a case, send the invite link to your friends, and start. You need only a name, not an
+account. Do not read `case/` in this repository first: it holds the solution.
+
+| | | |
+|---|---|---|
+| ![The lobby: case brief and "Open a case"](docs/screenshots/01-lobby-desktop.png) | ![The four suspects](docs/screenshots/04-suspects-desktop.png) | ![The host's desk with the "Behind the scenes" panel](docs/screenshots/07-host-desktop.png) |
+| The lobby | The four suspects | The host's desk and "Behind the scenes" |
+
+Contents: [How a game works](#how-a-game-works) ·
+[Architecture](#architecture) · [Why a Sprite](#why-a-sprite) ·
+[How the connector is used](#how-the-connector-is-used) ·
+[Things we learned about Sprites](#things-we-learned-about-sprites) · [Cost](#cost) ·
+[Development](#development) · [Deploy](#deploy)
+
+## How a game works
+
+1. **Open a case.** One person creates a room and becomes the host. They get an invite link
+   for everyone else. The waiting room shows the case brief.
+2. **Search the lodge.** Six rooms each have things to inspect. An inspection gives you an
+   exhibit card. Your cards are private until you pin them to the shared board.
+3. **Interview the four.** Each suspect talks to each player in a private chat. Other players
+   do not see your interview. Claude speaks for the suspect, but only from what that suspect
+   knows and is allowed to say.
+4. **Present evidence.** Show a card to a suspect. If the card contradicts their story, the
+   rules engine moves their testimony forward and Claude voices the new account. Each change
+   happens once. If the card does not matter to them, they react in character and nothing
+   changes.
+5. **Get help when stuck.** The AI game master checks on the room about every 90 seconds. When
+   the group stalls, it gives an authored hint, points at an unvisited room, or plays a storm
+   event. It tells the host when the group looks ready for the next act.
+6. **Accuse.** The game has three acts: First Accounts, Contradictions and Accusation. The group
+   makes one accusation and cites the evidence for it. Then the host ends the investigation.
+7. **The reveal.** Everyone sees what happened, how their accusation scored, and a short
+   commentary from Claude on how they played.
+
+The solution never reaches a browser before the host ends the game. It is not in any page,
+script or API response. The end-to-end test checks this.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph B["Browser (untrusted)"]
+    UI["React client<br/>sees only its own redacted view"]
+  end
+
+  subgraph F["Fly App last-orders (trusted: holds the case and the solution)"]
+    API["Game API + SSE"]
+    ENG["Rules engine<br/>facts, unlocks, testimony, scoring"]
+    Q["Job queue + dispatcher"]
+    INT["Internal agent API<br/>bearer shared secret"]
+  end
+
+  DB[("Fly Managed Postgres<br/>state, jobs, event log")]
+
+  subgraph S["Fly Sprite last-orders-gm (semi-trusted: scoped context only)"]
+    AG["Agent: POST /wake, job worker,<br/>prompt builder"]
+  end
+
+  subgraph C["Sprites Anthropic connector"]
+    GW["Gateway adds the API key"]
+  end
+
+  CL["Claude"]
+
+  UI <-->|"HTTPS + SSE<br/>session cookie"| API
+  API --> ENG
+  API --> DB
+  Q --> DB
+  INT --> DB
+  Q -->|"POST /wake (no payload)"| AG
+  AG -->|"claim job, get scoped context,<br/>submit result"| INT
+  AG -->|"Messages API, no key"| GW
+  GW --> CL
+```
+
+The same picture in text:
+
+```
+Browser ──HTTPS + SSE──> Fly App (game API, rules engine, job queue)  ──SQL──> Managed Postgres
+                             │                       ^
+                 POST /wake  │                       │ claim / context / result (bearer secret)
+                             v                       │
+                         Sprite agent ───────────────┘
+                             │
+                             └──Messages API──> Sprites Anthropic connector ──> Claude
+```
+
+Trust boundaries:
+
+- **Browser.** Untrusted. It gets only what the engine's redaction allows for that player:
+  public state, its own interviews and finds, and the shared board. It never gets the case
+  bible, another suspect's hidden facts, the killer, or the rules for when testimony changes.
+- **Fly App.** The only part with database access and the full case. It decides permissions,
+  unlocks, act changes, testimony state and accusation scores.
+- **Sprite agent.** Never touches SQL. For each job it gets a scoped context: one suspect's
+  persona, what that suspect knows in their current state, the lies they may tell, and this
+  player's interview so far. It does not see the solution, except for the reveal commentary
+  after the game ends. It can change state only by submitting a job result, which the app
+  checks against the lease, a schema and the current revision.
+- **Connector.** The Sprite holds no Anthropic key. The gateway identifies the Sprite and adds
+  the key. Its access policy allows only Sprites whose names start with `last-orders-`.
+- **Model output.** Untrusted. It is schema-checked, length-limited and escaped when shown.
+
+The rules engine owns the facts and Claude owns the voice. When a player presents evidence, the
+app runs the engine inside the same database transaction. A matching transition changes the
+suspect's state and writes a row with a unique key, so it fires exactly once even if two
+players present at the same moment. The reply job then asks Claude to say the new account in
+character. Every suspect brief forbids confessing and naming a killer. Accusation scoring is
+deterministic.
+
+More detail: [DESIGN.md](DESIGN.md) (how the code is shaped) and [PLAN.md](PLAN.md) (decisions
+and status).
+
+## Why a Sprite
+
+- **It wakes on demand.** The app sends `POST /wake` to the Sprite's public URL when a job is
+  waiting. The request carries no data. The agent then claims jobs from the app until the
+  queue is empty.
+- **It sleeps when idle.** Most of a murder mystery is people reading and thinking. Between
+  questions the Sprite has nothing to do, and it suspends.
+- **Game state survives in Postgres.** The Sprite keeps nothing it needs. Jobs have leases. If
+  the Sprite sleeps, restarts or loses a job, the app puts the job back in the queue and pings
+  again. A finished job that is submitted twice returns the stored result, so no reply appears
+  twice.
+- **It is a real computer.** Node 24 was already installed. We deploy the agent as one bundled
+  file and run it as a Sprite service, `last-orders-agent`, with
+  [`infra/sprite/deploy-agent.sh`](infra/sprite/deploy-agent.sh).
+
+## How the connector is used
+
+The agent uses the official `@anthropic-ai/sdk` with `baseURL` set to the connector's gateway:
+
+```
+POST https://api.sprites.dev/v1/gateway/anthropic/<connection id>/v1/messages
+```
+
+The SDK sends no key and no auth header. The gateway adds the key from the connection, which is
+billed to our own Anthropic account. Three kinds of job call Claude (`claude-sonnet-5-5` by
+default):
+
+| Job | Input | Output the app accepts |
+|---|---|---|
+| Suspect reply | One suspect's scoped context and the player's interview | In-character text, up to about 400 tokens |
+| Game-master tick | Act, time since the last discovery, what is found, hints already given | One choice id from an allowed list, such as `hint:<id>` or `none` |
+| Reveal commentary | The finished game, after the host ends it | Text, always labelled as commentary |
+
+Measured on 26 November 2026, with real Claude replies through the connector:
+
+| Case | Time |
+|---|---|
+| Suspect reply, Sprite awake | 2.9 s |
+| Suspect reply after 16 minutes idle (Sprite boot about 57 s) | 60.6 s |
+| Reveal commentary | 4 to 6 s |
+
+To hide the cold start, the app sends one pre-warm ping when a host creates a room and another
+when the game starts. Players read the case brief while the Sprite wakes.
+
+## Things we learned about Sprites
+
+Each of these is measured unless it says otherwise. The full log is in
+[infra/sprite/FINDINGS.md](infra/sprite/FINDINGS.md).
+
+- **A Sprite suspends when no request to it is open, even mid-job.** Our agent first answered
+  `/wake` with 202 and worked in the background. The Sprite then slept during model calls, and
+  jobs timed out. The fix: the agent keeps the `/wake` response open, writes a heartbeat line
+  every 10 seconds, and closes it when the queue is empty. The app reads it for up to 5
+  minutes. After this change, real replies came back reliably.
+- **Keep-alive sockets do not survive a suspend.** After a resume, Node reused a pooled
+  connection that was dead. Every job claim hung until its timeout. The fix: a 2-second
+  keep-alive and one retry on a fresh connection after a timeout or network error.
+- **The process survives a sleep.** After a cold wake the agent had the same process id. Memory
+  survived. We still keep all state in Postgres, because a restart would lose it.
+- **Cold wakes vary.** We saw 5.6 s after 15 minutes idle, about 57 s of boot before a 60.6 s
+  reply after 16 minutes idle, and once about 4 minutes. Warm requests take 0.1 to 0.4 s. The
+  pre-warm ping waits up to 300 s and never blocks a player.
+- **The REST status is not a wake signal.** `GET /v1/sprites/{name}` read `cold` while the
+  service answered `/healthz` in 0.2 s. We probe the service URL instead.
+
+## Cost
+
+- **Fly Managed Postgres:** plan `dev-256`, US$4 per 30 days.
+- **Fly App:** one `shared-cpu-1x` machine with 512 MB, always on, because the dispatcher runs
+  game-master ticks and lease checks.
+- **Sprite:** it runs only while a game needs replies, then sleeps. We have not checked this
+  against a bill.
+- **Claude:** each game has a spend cap, US$3 by default. The agent reports token use for each
+  job and the app adds it up. Past the cap, suspects answer from authored lines, labelled
+  "simulated", with a notice. The first connector test used about 85 input and 191 output
+  tokens, well under US$0.01 (worked out from token counts, not from a bill).
+- **Tests:** free. Every automated test uses a simulated model adapter and makes no paid
+  calls.
+
+## Repository layout
 
 | Path | What |
 |---|---|
@@ -10,6 +212,9 @@ code is shaped.
 | `apps/server` | Fastify app: game API, SSE, job queue, internal agent API. Serves the web build. |
 | `apps/agent` | Runs on the Sprite: wake endpoint, job worker, model adapters. |
 | `apps/web` | React + Vite client. |
+| `case/` | The authored case. **`case/bible.md` and the case JSON contain the solution. Do not read them before you play.** |
+| `infra/sprite` | Sprite deploy and ops scripts, and [FINDINGS.md](infra/sprite/FINDINGS.md). |
+| `docs/` | Screenshots and [submission material](docs/SUBMISSION.md). |
 
 ## Development
 
@@ -64,6 +269,9 @@ built client at http://localhost:8080.
 `COOKIE_INSECURE=1` lets the session cookie work over plain `http://`. Leave it unset in
 production, where cookies are `Secure`.
 
+To use Claude locally, run the agent with `MODEL_ADAPTER=anthropic` and your own
+`ANTHROPIC_API_KEY`. These are paid calls.
+
 ### Configuration
 
 Server (`apps/server`):
@@ -104,8 +312,9 @@ one. They empty its game tables on each test. No test calls a model.
 
 The end-to-end test drives two Chromium contexts through the whole case, from first accounts to the
 reveal, against the built server and a simulated agent. It also checks that no page, HTML or script
-holds the solution before the reveal. Set `E2E_SCREENSHOTS=<dir>` to save screenshots. It needs Playwright's Chromium (it uses a global `playwright` install if the
-package is not in the repo) and the `last_orders` database:
+holds the solution before the reveal. Set `E2E_SCREENSHOTS=<dir>` to save screenshots. It needs
+Playwright's Chromium (it uses a global `playwright` install if the package is not in the repo) and
+the `last_orders` database:
 
 ```bash
 npm run build
@@ -117,7 +326,8 @@ npm run test:e2e
 `npm run screenshots` plays a short game with the simulated agent and saves each main view at
 375x812 and 1440x900 (device scale 2) to `docs/screenshots/`. It needs the same setup as the
 end-to-end test. The committed set was reduced to 256 colours afterwards, except the lobby, to keep
-the repository small.
+the repository small. Some of the committed screenshots show evidence and testimony from late in
+the case; the three above do not.
 
 ### Suspect evals
 
@@ -138,6 +348,7 @@ Pushes to `main` deploy after CI passes. Nothing deploys from other branches.
 | Piece | Where | How |
 |---|---|---|
 | App + web client | Fly App `last-orders`, region `syd`, one `shared-cpu-1x` 512 MB machine | `.github/workflows/deploy.yml` runs `flyctl deploy --remote-only --ha=false`. The `Dockerfile` builds engine, server and web; migrations run when the server starts. Config is in `fly.toml`. |
+| Database | Fly Managed Postgres `last-orders-db`, region `syd`, plan `dev-256` | Attached to the app. The `DATABASE_URL` secret holds the direct endpoint. |
 | Agent | Sprite `last-orders-gm` | The same workflow runs `infra/sprite/deploy-agent.sh`: it bundles the agent into one file (`npm run bundle -w @last-orders/agent` → `apps/agent/dist/agent.mjs`), uploads it, and restarts the Sprite service `last-orders-agent`. Verified against the live Sprite on 26 November 2026. Manual Sprite tasks: `.github/workflows/sprite-ops.yml` (see `infra/sprite/FINDINGS.md`). |
 
 `.github/workflows/ci.yml` runs on every push and pull request: typecheck, build, unit and
@@ -175,4 +386,3 @@ docker build -t last-orders .
 docker run --rm --network host -e PORT=8080 \
   -e DATABASE_URL=postgres://postgres:postgres@localhost:5432/last_orders last-orders
 ```
-

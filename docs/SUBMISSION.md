@@ -12,8 +12,8 @@ measured on 26 November 2026.
 |---|---|
 | Play link | https://last-orders.fly.dev |
 | Code | https://github.com/BevanR/last-orders |
-| Demo video | Add the link after upload. |
-| Social post | Tag @flydotio. Drafts below. |
+| Demo video | https://youtu.be/5PlfSGwzqKs |
+| Social post | https://x.com/BevanR/status/2126441863695737186 |
 
 **No spoilers anywhere.** The repository, the video and the posts are public, and players will
 read them. Do not name the killer, the solution or the decisive evidence. The demo script

@@ -11,6 +11,8 @@ calls Claude through the Sprites Anthropic connector. It is our entry for Fly.io
 
 **Play it: https://last-orders.fly.dev**
 
+**Watch the 2-minute demo: https://youtu.be/5PlfSGwzqKs**
+
 Open a case, send the invite link to your friends, and start. You need only a name, not an
 account. Do not read `case/` in this repository first: it holds the solution.
 
